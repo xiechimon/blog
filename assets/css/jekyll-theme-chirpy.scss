@@ -2,7 +2,8 @@
 ---
 
 @use 'abstracts/variables' with (
-  $theme: '{{ site.theme_mode }}'
+  $theme: '{{ site.theme_mode }}',
+  $font-family-base: ('Noto Serif SC', 'Microsoft Yahei', serif)
 );
 
 /* prettier-ignore */
