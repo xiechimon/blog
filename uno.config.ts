@@ -2,7 +2,6 @@ import type { Preset } from 'unocss'
 import {
   defineConfig,
   presetAttributify,
-  presetIcons,
   presetWind3,
   transformerDirectives,
   transformerVariantGroup,
@@ -13,16 +12,9 @@ import { themeConfig } from './src/config.ts'
 const { light, dark } = themeConfig.color
 
 export default defineConfig({
-  // footer 图标类名来自 src/config.ts 的字符串（动态拼接），UnoCSS 提取器扫不到，需 safelist
-  safelist: [
-    ...themeConfig.footer.links
-      .map(link => link.icon)
-      .filter((icon): icon is string => Boolean(icon)),
-  ],
   presets: [
     presetWind3(),
     presetAttributify(),
-    presetIcons(),
     presetTheme({
       theme: {
         dark: {

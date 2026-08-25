@@ -1,7 +1,15 @@
 ---
+import EmailIcon from '@/assets/icons/email.svg'
+import GithubIcon from '@/assets/icons/github.svg'
 import { themeConfig } from '@/config'
 import { getLangFromPath } from '@/i18n/lang'
 import { getLocalizedPath } from '@/i18n/path'
+
+// 手写 SVG 图标（src/assets/icons/，与主题自带图标同一套风格），config 里 icon 字段为 key
+const iconComponents: Record<string, typeof GithubIcon> = {
+  github: GithubIcon,
+  email: EmailIcon,
+}
 
 const { author } = themeConfig.site
 const { links, startYear } = themeConfig.footer
@@ -63,6 +71,7 @@ const socialLinks = links.map(({ name, url, icon }) => {
   <p class="flex items-center gap-2.5">
     {socialLinks.map((link, index) => {
       const { name, icon, ...attrs } = link
+      const Icon = iconComponents[icon ?? '']
       return (
         <>
           <a
@@ -70,7 +79,7 @@ const socialLinks = links.map(({ name, url, icon }) => {
             {...attrs}
             aria-label={name}
           >
-            {icon && <span class={`${icon} inline-block text-[1.2em]`} aria-hidden="true" />}
+            {Icon && <Icon fill="currentColor" aria-hidden="true" class="inline-block aspect-square w-1.2em" />}
           </a>
           {index < socialLinks.length - 1 && '/'}
         </>

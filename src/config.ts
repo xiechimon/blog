@@ -164,12 +164,12 @@ export const themeConfig: ThemeConfig = {
       {
         name: 'GitHub',
         url: 'https://github.com/xiechimon',
-        icon: 'i-mdi-github',
+        icon: 'github',
       },
       {
         name: 'Email',
         url: 'xiechimon@qq.com',
-        icon: 'i-mdi-email-outline',
+        icon: 'email',
       },
     ],
     // year of website start
