@@ -70,7 +70,7 @@ const socialLinks = links.map(({ name, url, icon }) => {
             {...attrs}
             aria-label={name}
           >
-            {icon && <span class={`${icon} text-4`} aria-hidden="true" />}
+            {icon && <span class={`${icon} inline-block text-[1.2em]`} aria-hidden="true" />}
           </a>
           {index < socialLinks.length - 1 && '/'}
         </>
