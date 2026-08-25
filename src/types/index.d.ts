@@ -85,6 +85,7 @@ export interface ThemeConfig {
     links: {
       name: string
       url: string
+      icon?: string
     }[]
     startYear: number
   }

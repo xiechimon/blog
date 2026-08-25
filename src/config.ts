@@ -162,16 +162,14 @@ export const themeConfig: ThemeConfig = {
     // social links
     links: [
       {
-        name: 'RSS',
-        url: '/atom.xml', // or /rss.xml
-      },
-      {
         name: 'GitHub',
         url: 'https://github.com/xiechimon',
+        icon: 'i-mdi-github',
       },
       {
         name: 'Email',
-        url: 'mailto:xiechimon@qq.com',
+        url: 'xiechimon@qq.com',
+        icon: 'i-mdi-email-outline',
       },
     ],
     // year of website start

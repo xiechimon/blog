@@ -12,9 +12,14 @@ const year = Number(startYear) === currentYear
   : `${startYear}-${currentYear}`
 
 const currentLang = getLangFromPath(Astro.url.pathname)
-const socialLinks = links.map(({ name, url }) => {
+const socialLinks = links.map(({ name, url, icon }) => {
   const isRSS = url === '/atom.xml' || url === '/rss.xml'
   const isEmail = /^[\w.-]+@[\w.-]+\.[a-z]{2,}$/i.test(url)
+
+  const base = {
+    name,
+    icon,
+  }
 
   if (isRSS) {
     const localizedPath = getLocalizedPath(url, currentLang)
@@ -23,7 +28,7 @@ const socialLinks = links.map(({ name, url }) => {
       : localizedPath.slice(0, -1)
 
     return {
-      name,
+      ...base,
       href,
       target: '_blank',
       rel: 'noopener noreferrer',
@@ -33,7 +38,7 @@ const socialLinks = links.map(({ name, url }) => {
   if (isEmail) {
     const href = `mailto:${url}`
     return {
-      name,
+      ...base,
       href,
       'data-umami-event': 'outbound-link-click',
       'data-umami-event-url': href,
@@ -41,7 +46,7 @@ const socialLinks = links.map(({ name, url }) => {
   }
 
   return {
-    name,
+    ...base,
     'href': url,
     'target': '_blank',
     'rel': 'noopener noreferrer',
@@ -55,13 +60,22 @@ const socialLinks = links.map(({ name, url }) => {
   class="text-3 leading-1.25em font-navbar"
   lg="uno-desktop-column bottom-20 text-3.5"
 >
-  <p>
-    {socialLinks.map((link, index) => (
-      <>
-        <a class="highlight-hover py-0.8 transition-colors after:bottom-0.35em hover:c-primary" {...link}>{link.name}</a>
-        {index < socialLinks.length - 1 && '/'}
-      </>
-    ))}
+  <p class="flex items-center gap-2.5">
+    {socialLinks.map((link, index) => {
+      const { name, icon, ...attrs } = link
+      return (
+        <>
+          <a
+            class="highlight-hover inline-flex items-center gap-1 transition-colors after:bottom-0.35em hover:c-primary"
+            {...attrs}
+            aria-label={name}
+          >
+            {icon && <span class={`${icon} text-4`} aria-hidden="true" />}
+          </a>
+          {index < socialLinks.length - 1 && '/'}
+        </>
+      )
+    })}
   </p>
 
   <p>
