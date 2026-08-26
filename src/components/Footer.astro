@@ -1,92 +1,19 @@
 ---
-import EmailIcon from '@/assets/icons/email.svg'
-import GithubIcon from '@/assets/icons/github.svg'
 import { themeConfig } from '@/config'
-import { getLangFromPath } from '@/i18n/lang'
-import { getLocalizedPath } from '@/i18n/path'
-
-// 手写 SVG 图标（src/assets/icons/，与主题自带图标同一套风格），config 里 icon 字段为 key
-const iconComponents: Record<string, typeof GithubIcon> = {
-  github: GithubIcon,
-  email: EmailIcon,
-}
 
 const { author } = themeConfig.site
-const { links, startYear } = themeConfig.footer
+const { startYear } = themeConfig.footer
 
 const currentYear = new Date().getFullYear()
 const year = Number(startYear) === currentYear
   ? startYear
   : `${startYear}-${currentYear}`
-
-const currentLang = getLangFromPath(Astro.url.pathname)
-const socialLinks = links.map(({ name, url, icon }) => {
-  const isRSS = url === '/atom.xml' || url === '/rss.xml'
-  const isEmail = /^[\w.-]+@[\w.-]+\.[a-z]{2,}$/i.test(url)
-
-  const base = {
-    name,
-    icon,
-  }
-
-  if (isRSS) {
-    const localizedPath = getLocalizedPath(url, currentLang)
-    const href = import.meta.env.DEV
-      ? localizedPath
-      : localizedPath.slice(0, -1)
-
-    return {
-      ...base,
-      href,
-      target: '_blank',
-      rel: 'noopener noreferrer',
-    }
-  }
-
-  if (isEmail) {
-    const href = `mailto:${url}`
-    return {
-      ...base,
-      href,
-      'data-umami-event': 'outbound-link-click',
-      'data-umami-event-url': href,
-    }
-  }
-
-  return {
-    ...base,
-    'href': url,
-    'target': '_blank',
-    'rel': 'noopener noreferrer',
-    'data-umami-event': 'outbound-link-click',
-    'data-umami-event-url': url,
-  }
-})
 ---
 
 <footer
   class="text-3 leading-1.25em font-navbar"
   lg="uno-desktop-column bottom-20 text-3.5"
 >
-  <p class="flex items-center gap-2.5">
-    {socialLinks.map((link, index) => {
-      const { name, icon, ...attrs } = link
-      const Icon = iconComponents[icon ?? '']
-      return (
-        <>
-          <a
-            class="highlight-hover inline-flex items-center gap-1 transition-colors after:bottom-0.35em hover:c-primary"
-            {...attrs}
-            aria-label={name}
-          >
-            {Icon && <Icon fill="currentColor" aria-hidden="true" class="inline-block aspect-square w-1.2em" />}
-          </a>
-          {index < socialLinks.length - 1 && '/'}
-        </>
-      )
-    })}
-  </p>
-
   <p>
     © {year} {author}
   </p>
