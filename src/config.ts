@@ -14,7 +14,7 @@ export const themeConfig: ThemeConfig = {
     // author name
     author: 'xiechimon',
     // site url
-    url: 'https://blog.xmon.me',
+    url: 'https://xmon.me',
     // base path
     // root directory for all pages and assets
     base: '/', // e.g., '/blog', '/docs'

@@ -1,11 +1,11 @@
 # Blog - Xiechimon 个人博客
 
-> Astro + Retypeset 主题，部署于 VPS（Cloudflare Tunnel 暴露为 blog.xmon.me）。AI 协作请遵循本文件约定。
+> Astro + Retypeset 主题，部署于 VPS（Cloudflare Tunnel 暴露为 xmon.me）。AI 协作请遵循本文件约定。
 
 ## 项目概览
 
 - **主题**: [astro-theme-retypeset](https://github.com/radishzzz/astro-theme-retypeset)（中文「重新编排」，以 Typography 为设计灵感）
-- **站点**: `https://blog.xmon.me`（`base: "/"`，VPS nginx 托管，经 Cloudflare Tunnel 暴露）
+- **站点**: `https://xmon.me`（`base: "/"`，VPS nginx 托管，经 Cloudflare Tunnel 暴露；旧域名 blog.xmon.me 301 跳转至此，www 同）
 - **技术栈**: Node.js（lts）+ Astro 6 + TypeScript + UnoCSS + pnpm 10
 - **语言/时区**: `zh`（`src/config.ts` 中 `global.locale`，仅中文，`moreLocales` 为空）
 - **作者**: xiechimon（GitHub `xiechimon`，邮箱 `xiechimon@qq.com`）
@@ -52,7 +52,7 @@ pnpm install            # 安装依赖（首次 / package.json 变更后）
 pnpm dev                # 本地开发 http://localhost:4321
 pnpm build              # 类型检查(astro check) + 构建 + LQIP 处理
 pnpm preview            # 预览构建产物
-pnpm deploy:vps         # 构建 + rsync dist/ 到 VPS（blog.xmon.me）
+pnpm deploy:vps         # 构建 + rsync dist/ 到 VPS（xmon.me）
 pnpm lint               # ESLint 检查
 pnpm new-post           # 交互式新建文章
 ```
@@ -86,13 +86,13 @@ lang: ""                                # 可选，文章语言（默认跟随�
 
 ## 部署
 
-- 部署目标: VPS（`ssh pqy`，nginx 托管 `/var/www/blog/`，经 Cloudflare Tunnel 暴露为 `https://blog.xmon.me`）
+- 部署目标: VPS（`ssh pqy`，nginx 托管 `/var/www/blog/`，经 Cloudflare Tunnel 暴露为 `https://xmon.me`）
 - 命令: `pnpm deploy:vps`（= `astro build` + `rsync dist/` 到 `pqy:/var/www/blog/`）
 - 本地验证: `pnpm build` 通过后再部署
 
 ## 开发约束
 
-- 保持 `src/config.ts` 中 `site.base: "/"` 与 `site.url: "https://blog.xmon.me"` 一致（影响线上路径与 sitemap/feed/OG）
+- 保持 `src/config.ts` 中 `site.base: "/"` 与 `site.url: "https://xmon.me"` 一致（影响线上路径与 sitemap/feed/OG）
 - `pnpm-lock.yaml` 需随 `package.json` 一起提交
 - 不要提交 `dist/`、`node_modules/`（已 gitignore）
 - 提交信息简洁中文或英文，关联博文更新时注明 slug
