@@ -181,26 +181,26 @@ pre.mermaid svg {
 
 /* TOC >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 #toc-mobile-text {
-  --at-apply: 'ml-4 font-semibold 2xl:hidden';
+  --at-apply: 'ml-4 font-semibold xl:hidden';
 }
 #toc-links-list {
-  --at-apply: 'mb-2.5 mt-1 list-none pl-0 2xl:(mb-1 space-y-1) space-y-1.1';
+  --at-apply: 'mb-2.5 mt-1 list-none pl-0 xl:(mb-1 space-y-1) space-y-1.1';
   scroll-target-group: auto;
 }
 a:target-current {
-    --at-apply: '2xl:(c-primary font-medium)';
+    --at-apply: 'xl:(c-primary font-medium)';
 }
 .toc-links-h2, .toc-links-h3, .toc-links-h4 {
-  --at-apply: 'text-balance text-sm font-normal no-underline after:bottom-0.15em 2xl:(text-3.2 c-secondary/80 hover:c-primary hover:font-medium)';
+  --at-apply: 'text-balance text-sm font-normal no-underline after:bottom-0.15em xl:(text-3.2 c-secondary/80 hover:c-primary hover:font-medium)';
   transition: color 0.15s ease-out, font-weight 0.15s ease-out;
 }
 
 /* Overflow and Scrollbar */
 #toc-toggle:checked ~ #toc-accordion-wrapper #toc-accordion-content {
-  --at-apply: 'overflow-y-auto 2xl:overflow-hidden';
+  --at-apply: 'overflow-y-auto xl:overflow-hidden';
 }
 #toc-accordion-content {
-  --at-apply: 'max-h-59 overflow-hidden pl-4 pr-6 2xl:(max-h-[calc(100vh-27.5rem)] overflow-y-auto scrollbar-hidden)';
+  --at-apply: 'max-h-59 overflow-hidden pl-4 pr-6 xl:(max-h-[calc(100vh-14.5rem)] overflow-y-auto scrollbar-hidden)';
   scrollbar-width: thin;
   scrollbar-color: oklch(var(--un-preset-theme-colors-secondary) / 0.15) transparent;
 }
@@ -219,8 +219,30 @@ a:target-current {
 
 /* Desktop Initial State */
 #toc-accordion-wrapper {
-  --at-apply: '2xl:rows-[1fr]';
+  --at-apply: 'xl:rows-[1fr]';
 }
 #toc-toggle:checked ~ #toc-accordion-wrapper {
-  --at-apply: '2xl:rows-[0fr]';
+  --at-apply: 'xl:rows-[0fr]';
+}
+
+/* Overflow Fade Hints (toggled by JS when entries are clipped) */
+#toc-accordion-wrapper {
+  position: relative;
+}
+.toc-fade-top::before,
+.toc-fade-end::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2.5rem;
+  pointer-events: none;
+}
+.toc-fade-top::before {
+  top: 0;
+  background: linear-gradient(to bottom, oklch(var(--un-preset-theme-colors-background)), transparent);
+}
+.toc-fade-end::after {
+  bottom: 0;
+  background: linear-gradient(to top, oklch(var(--un-preset-theme-colors-background)), transparent);
 }
