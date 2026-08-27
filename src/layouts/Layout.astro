@@ -63,5 +63,36 @@ const MarginBottom = isPost && themeConfig.comment.enabled
     <GithubCard />
     <MediaEmbed />
     <ImageZoom />
+    {/* Dev-only fix: after a ClientRouter swap, styles injected by the dev server keep raw
+        UnoCSS directives (--at-apply / @apply) which browsers cannot interpret, so rules like
+        the page background and highlight-hover break until a hard reload. Re-fetch each
+        affected module via Vite's ?direct pipeline and replace its <style> content.
+        Upstream bug: https://github.com/withastro/astro/issues/16373 (also affects v6.3.3) */}
+    {import.meta.env.DEV && (
+      <script is:inline>
+(function () {
+  function fixUnexpandedStyles() {
+    document.querySelectorAll('style[data-vite-dev-id]').forEach((el) => {
+      const css = el.textContent || ''
+      if (!css.includes('--at-apply') && !css.includes('@apply'))
+        return
+      const id = el.dataset.viteDevId || ''
+      // Only plain .css module ids; skip virtual/query ids like "/__uno.css" or "*.css?url"
+      if (!id.startsWith('/') || !id.endsWith('.css'))
+        return
+      fetch(`/@fs${encodeURI(id)}?direct`)
+        .then((r) => { return r.ok ? r.text() : Promise.reject(new Error(`http ${r.status}`)) })
+        .then((text) => {
+          if (el.isConnected && text && !text.includes('--at-apply') && !text.includes('@apply')) {
+            el.textContent = text
+          }
+        })
+        .catch(() => { /* best-effort: hard reload still works */ })
+    })
+  }
+  document.addEventListener('astro:after-swap', fixUnexpandedStyles)
+})()
+</script>
+    )}
   </body>
 </html>
