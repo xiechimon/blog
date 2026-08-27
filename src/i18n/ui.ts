@@ -5,6 +5,7 @@ interface Translation {
   subtitle: string
   description: string
   posts: string
+  archives?: string
   tags: string
   about: string
   toc: string
@@ -93,10 +94,11 @@ export const ui: Record<Language, Translation> = {
     toc: 'Оглавление',
   },
   'zh': {
-    title: 'Xiechimon',
+    title: 'xiechimon',
     subtitle: '记录学习',
     description: 'Xie Chi Mon 的个人博客，记录前端、技术与生活。',
     posts: '文章',
+    archives: '归档',
     tags: '标签',
     about: '关于',
     toc: '目录',
