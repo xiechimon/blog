@@ -104,6 +104,15 @@ function setupOverlay(): void {
   overlay.append(zoomedImg, captionBar)
   document.body.append(overlay, prevBtn, nextBtn, closeBtn)
 
+  // DEV 兜底：软导航后 UnoCSS 样式可能尚未生效（上游 astro#16373，Layout 内有修复但异步），
+  // 内联 opacity 防止按钮在类样式落地前以 opacity 1 闪现；updateChrome 显示时清除内联交还类样式
+  if (prevBtn)
+    prevBtn.style.opacity = '0'
+  if (nextBtn)
+    nextBtn.style.opacity = '0'
+  if (closeBtn)
+    closeBtn.style.opacity = '0'
+
   // 事件
   overlay.addEventListener('click', closeViewer)
   closeBtn.addEventListener('click', (e) => {
@@ -175,6 +184,11 @@ function computeBox(img: HTMLImageElement): { w: number, h: number } {
 function updateChrome(): void {
   if (!captionEl || !counterEl || !captionBar || !prevBtn || !nextBtn || !closeBtn)
     return
+
+  // 清除 DEV 兜底的内联 opacity，显示/隐藏自此由类样式接管
+  prevBtn.style.opacity = ''
+  nextBtn.style.opacity = ''
+  closeBtn.style.opacity = ''
 
   const cap = getCaption(gallery[currentIndex])
   captionEl.textContent = cap
@@ -274,14 +288,20 @@ function openAt(index: number): void {
   zoomedImg.style.opacity = '0'
   void zoomedImg.offsetWidth // 强制回流，保证从起始帧开始过渡
 
-  requestAnimationFrame(() => {
-    if (!overlay || !zoomedImg)
+  // 翻转到最终态：rAF 优先（保证起始帧先绘制），后台/遮挡窗口 rAF 可能长时间
+  // 不触发，加定时器兜底；flipped 保证双触发幂等
+  let flipped = false
+  const flip = () => {
+    if (flipped || !overlay || !zoomedImg)
       return
+    flipped = true
     overlay.style.opacity = '1'
     zoomedImg.style.transition = ''
     zoomedImg.style.opacity = '1'
     zoomedImg.style.transform = 'translate(0, 0) scale(1)'
-  })
+  }
+  requestAnimationFrame(flip)
+  window.setTimeout(flip, 60)
 
   preload(currentIndex + 1)
   preload(currentIndex - 1)
