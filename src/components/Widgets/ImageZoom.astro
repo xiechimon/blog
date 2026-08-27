@@ -1,135 +1,580 @@
 <script>
+/**
+ * ImageZoom — 复用型图片灯箱，支持单图放大与多图左右翻页
+ * 复用点：
+ * - 复用全局样式 .zoom-overlay / .zoom-img（src/styles/global.css）
+ * - 复用现有 rehype 产物结构（#post-content / article.heti / .gallery-container）
+ * - 复用原有缩放动画（rect → center 的 scale/translate）
+ * - 零外部依赖，纯原生实现，便于在任何内容区复用
+ */
 let overlay: HTMLDivElement | null = null
 let zoomedImg: HTMLImageElement | null = null
-let originalImg: HTMLImageElement | null = null
+let prevBtn: HTMLButtonElement | null = null
+let nextBtn: HTMLButtonElement | null = null
+let closeBtn: HTMLButtonElement | null = null
+let captionBar: HTMLDivElement | null = null
+let captionEl: HTMLSpanElement | null = null
+let counterEl: HTMLSpanElement | null = null
 
-// Setup overlay element
-function setupOverlay() {
-  overlay = document.createElement('div')
-  overlay.className = 'zoom-overlay'
-  overlay.setAttribute('role', 'dialog')
-  overlay.setAttribute('aria-modal', 'true')
-  overlay.setAttribute('aria-label', 'Image Viewer')
-  overlay.setAttribute('tabindex', '-1')
+let gallery: HTMLImageElement[] = []
+let currentIndex = 0
+let isOpen = false
+let isAnimating = false
+let isGallerySwitched = false // 标记是否已从 rect 模式切换到居中模式（多图翻页用）
+let touchStartX = 0
+let touchStartY = 0
 
-  document.body.appendChild(overlay)
+// ---------- DOM 收集 ----------
+function collectImages(): void {
+  // 优先取文章正文，其次全页 heti 区域，兜底全文档
+  const root
+    = (document.getElementById('post-content') as HTMLElement | null)
+      ?? (document.querySelector('article.heti') as HTMLElement | null)
+      ?? document.body
+
+  const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[]
+  gallery = imgs.filter((img) => {
+    // 排除：链接内的图片、作者头像等小图、未完成且尺寸过小的占位
+    if (img.closest('a'))
+      return false
+    if (img.closest('.no-heti'))
+      return false
+    // 过滤装饰性小图（宽高 < 100 且已加载）
+    if (img.complete && img.naturalWidth > 0 && img.naturalWidth < 80 && img.naturalHeight < 80) {
+      return false
+    }
+    // 过滤不可见
+    if (img.offsetParent === null && img.getClientRects().length === 0)
+      return false
+    return true
+  })
 }
 
-// Clean up zoom state
-function cleanupZoom() {
-  overlay = null
-  zoomedImg = null
-  originalImg = null
-}
-
-// Zoom in the image
-function zoomIn(img: HTMLImageElement) {
-  if (!overlay) {
+// ---------- 元素创建（复用全局样式） ----------
+function setupOverlay(): void {
+  // 避免重复创建（应对 astro:page-load 多次触发）
+  if (overlay && document.body.contains(overlay)) {
+    collectImages()
     return
   }
 
-  // Disable scrolling and get position
-  document.body.style.overflow = 'hidden'
-  const rect = img.getBoundingClientRect()
-  originalImg = img
+  overlay = document.createElement('div')
+  overlay.className = 'zoom-overlay'
+  overlay.setAttribute('role', 'presentation')
+  overlay.setAttribute('aria-hidden', 'true')
 
-  // Clone and setup image
-  zoomedImg = img.cloneNode() as HTMLImageElement
+  zoomedImg = document.createElement('img')
   zoomedImg.className = 'zoom-img'
-  zoomedImg.removeAttribute('id')
-  zoomedImg.removeAttribute('loading')
+  zoomedImg.alt = ''
+  // 关键：同时过渡 transform 与 opacity，便于翻页淡入淡出
+  zoomedImg.style.opacity = '0'
 
+  prevBtn = document.createElement('button')
+  prevBtn.className = 'zoom-nav zoom-prev'
+  prevBtn.type = 'button'
+  prevBtn.setAttribute('aria-label', '上一张')
+  prevBtn.innerHTML
+    = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18L9 12L15 6"/></svg>'
+
+  nextBtn = document.createElement('button')
+  nextBtn.className = 'zoom-nav zoom-next'
+  nextBtn.type = 'button'
+  nextBtn.setAttribute('aria-label', '下一张')
+  nextBtn.innerHTML
+    = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6L15 12L9 18"/></svg>'
+
+  closeBtn = document.createElement('button')
+  closeBtn.className = 'zoom-close'
+  closeBtn.type = 'button'
+  closeBtn.setAttribute('aria-label', '关闭')
+  closeBtn.innerHTML
+    = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6L6 18M6 6L18 18"/></svg>'
+
+  captionBar = document.createElement('div')
+  captionBar.className = 'zoom-caption-bar'
+  captionBar.setAttribute('aria-live', 'polite')
+  captionEl = document.createElement('span')
+  captionEl.className = 'zoom-caption'
+  counterEl = document.createElement('span')
+  counterEl.className = 'zoom-counter'
+  captionBar.append(captionEl, counterEl)
+
+  document.body.append(overlay, zoomedImg, prevBtn, nextBtn, closeBtn, captionBar)
+
+  // 事件
+  overlay.addEventListener('click', closeViewer)
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    closeViewer()
+  })
+  prevBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    navigate(-1)
+  })
+  nextBtn.addEventListener('click', (e) => {
+    e.stopPropagation()
+    navigate(1)
+  })
+  zoomedImg.addEventListener('click', (e) => {
+    e.stopPropagation()
+    // 单图：点图关闭；多图：点图下一张（更符合相册直觉）
+    if (gallery.length > 1)
+      navigate(1)
+    else closeViewer()
+  })
+  // 键盘与触摸
+  document.addEventListener('keydown', handleKeydown)
+  // 触摸滑动（在 zoomedImg 与 overlay 上）
+  zoomedImg.addEventListener('touchstart', handleTouchStart, { passive: true })
+  zoomedImg.addEventListener('touchend', handleTouchEnd, { passive: true })
+
+  collectImages()
+}
+
+function cleanupViewer(): void {
+  // 页面切换前收尾：关闭并清理引用，但保留 DOM 供下一次复用
+  if (isOpen) {
+    // 同步清理，不走动画，避免过渡残留
+    isOpen = false
+    isAnimating = false
+    isGallerySwitched = false
+    if (overlay) {
+      overlay.style.display = 'none'
+      overlay.style.opacity = '0'
+    }
+    if (zoomedImg) {
+      zoomedImg.style.display = 'none'
+      zoomedImg.style.opacity = '0'
+      zoomedImg.style.transform = ''
+    }
+    hideChrome()
+    document.body.style.overflow = ''
+  }
+}
+
+// ---------- 工具 ----------
+function getCaption(img: HTMLImageElement): string {
+  const alt = img.getAttribute('alt')?.trim() ?? ''
+  if (!alt || alt.startsWith('_'))
+    return ''
+  return alt
+}
+
+function updateChrome(): void {
+  if (!captionEl || !counterEl || !captionBar || !prevBtn || !nextBtn || !closeBtn)
+    return
+
+  const cap = getCaption(gallery[currentIndex])
+  captionEl.textContent = cap
+  captionEl.style.display = cap ? '' : 'none'
+
+  if (gallery.length > 1) {
+    counterEl.textContent = `${currentIndex + 1} / ${gallery.length}`
+    counterEl.style.display = ''
+    prevBtn.classList.add('is-visible')
+    nextBtn.classList.add('is-visible')
+  }
+  else {
+    counterEl.style.display = 'none'
+    prevBtn.classList.remove('is-visible')
+    nextBtn.classList.remove('is-visible')
+  }
+
+  // 有题注或计数时才显示底栏
+  const showBar = cap !== '' || gallery.length > 1
+  captionBar.classList.toggle('is-visible', showBar)
+  closeBtn.classList.add('is-visible')
+
+  // 单图时无需 gallery 样式
+  if (zoomedImg) {
+    zoomedImg.classList.toggle('is-gallery', gallery.length > 1)
+  }
+}
+
+function hideChrome(): void {
+  prevBtn?.classList.remove('is-visible')
+  nextBtn?.classList.remove('is-visible')
+  closeBtn?.classList.remove('is-visible')
+  captionBar?.classList.remove('is-visible')
+}
+
+function preload(idx: number): void {
+  if (gallery.length === 0)
+    return
+  const i = (idx + gallery.length) % gallery.length
+  const el = gallery[i]
+  if (!el)
+    return
+  const src = (el as HTMLImageElement & { currentSrc?: string }).currentSrc || el.src
+  if (!src)
+    return
+  const im = new Image()
+  im.src = src
+}
+
+function isValidTarget(img: HTMLImageElement): boolean {
+  if (!img.complete)
+    return true // 未加载完成也允许点开
+  if (img.naturalWidth < 100 || img.naturalHeight < 100)
+    return false
+  return true
+}
+
+// ---------- 打开 / 关闭 / 翻页 ----------
+function openAt(index: number): void {
+  if (!overlay || !zoomedImg)
+    return
+  if (gallery.length === 0)
+    collectImages()
+  if (index < 0 || index >= gallery.length)
+    return
+
+  const target = gallery[index]
+  if (!isValidTarget(target))
+    return
+
+  currentIndex = index
+  isOpen = true
+  isAnimating = true
+  isGallerySwitched = false
+
+  const rect = target.getBoundingClientRect()
+  const src = (target as HTMLImageElement & { currentSrc?: string }).currentSrc || target.src
+
+  // 预置为缩略图位置（复用原有 rect → center 动画）
+  zoomedImg.src = src
+  zoomedImg.alt = target.alt || ''
+  zoomedImg.style.display = 'block'
   zoomedImg.style.top = `${rect.top}px`
   zoomedImg.style.left = `${rect.left}px`
   zoomedImg.style.width = `${rect.width}px`
   zoomedImg.style.height = `${rect.height}px`
-
-  // Add to DOM and show
-  document.body.appendChild(zoomedImg)
-  overlay.style.display = 'block'
-  overlay.focus()
-
-  // Calculate scale and position
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  const scaleFactor = window.innerWidth < 768 ? 1 : 0.8
-  const scale = Math.min(
-    (viewportWidth * scaleFactor) / rect.width,
-    (viewportHeight * scaleFactor) / rect.height,
-  )
-  const translateX = (-rect.left + (viewportWidth - rect.width) / 2) / scale
-  const translateY = (-rect.top + (viewportHeight - rect.height) / 2) / scale
-
-  // Start animation
-  requestAnimationFrame(() => {
-    if (overlay) {
-      overlay.style.opacity = '1'
-    }
-
-    if (zoomedImg) {
-      zoomedImg.style.transform = `scale(${scale}) translate3d(${translateX}px, ${translateY}px, 0)`
-    }
-  })
-}
-
-// Zoom out the image
-function zoomOut() {
-  if (!overlay || !zoomedImg || !originalImg) {
-    return
-  }
-
-  // Start closing animation
+  zoomedImg.style.maxWidth = 'none'
+  zoomedImg.style.maxHeight = 'none'
+  zoomedImg.style.opacity = '0'
   zoomedImg.style.transform = ''
-  overlay.style.opacity = '0'
-  document.body.style.overflow = ''
 
-  // Define cleanup logic
-  const cleanup = () => {
-    if (!zoomedImg) {
+  overlay.style.display = 'block'
+  // 强制回流，保证从 rect 位置开始过渡
+  void zoomedImg.offsetWidth
+
+  document.body.style.overflow = 'hidden'
+  updateChrome()
+
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const scaleFactor = vw < 768 ? 0.95 : 0.85
+  const scale = Math.min((vw * scaleFactor) / rect.width, (vh * scaleFactor) / rect.height)
+  const tx = (-rect.left + (vw - rect.width) / 2) / scale
+  const ty = (-rect.top + (vh - rect.height) / 2) / scale
+
+  requestAnimationFrame(() => {
+    if (!overlay || !zoomedImg)
       return
+    overlay.style.opacity = '1'
+    zoomedImg.style.opacity = '1'
+    zoomedImg.style.transform = `scale(${scale}) translate3d(${tx}px, ${ty}px, 0)`
+  })
+
+  // 首帧动画结束后：多图场景切到居中自适应模式，后续翻页仅做淡入淡出
+  const onFirstEnd = (e: TransitionEvent) => {
+    if (e.propertyName !== 'transform')
+      return
+    zoomedImg?.removeEventListener('transitionend', onFirstEnd)
+    if (!isOpen || !zoomedImg)
+      return
+
+    // 多图才需要切换，单图保留原有“点图关闭回弹”体验
+    if (gallery.length > 1) {
+      // 瞬间切换到居中，不产生二次动画
+      zoomedImg.style.transition = 'none'
+      zoomedImg.style.top = '50%'
+      zoomedImg.style.left = '50%'
+      zoomedImg.style.width = 'auto'
+      zoomedImg.style.height = 'auto'
+      zoomedImg.style.maxWidth = '90vw'
+      zoomedImg.style.maxHeight = '90vh'
+      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
+      // 下一帧恢复过渡，供翻页使用
+      requestAnimationFrame(() => {
+        if (!zoomedImg)
+          return
+        void zoomedImg.offsetWidth
+        zoomedImg.style.transition = ''
+        isGallerySwitched = true
+        isAnimating = false
+      })
+      preload(currentIndex + 1)
+      preload(currentIndex - 1)
     }
+    else {
+      isAnimating = false
+    }
+  }
+  zoomedImg.addEventListener('transitionend', onFirstEnd)
 
-    // Remove zoomed image
-    zoomedImg?.remove()
-    zoomedImg = null
+  // 安全兜底：若 transitionend 未触发
+  window.setTimeout(() => {
+    if (isAnimating && !isGallerySwitched && gallery.length > 1 && zoomedImg) {
+      zoomedImg.removeEventListener('transitionend', onFirstEnd)
+      zoomedImg.style.top = '50%'
+      zoomedImg.style.left = '50%'
+      zoomedImg.style.width = 'auto'
+      zoomedImg.style.height = 'auto'
+      zoomedImg.style.maxWidth = '90vw'
+      zoomedImg.style.maxHeight = '90vh'
+      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
+      isGallerySwitched = true
+      isAnimating = false
+    }
+    else if (gallery.length <= 1) {
+      isAnimating = false
+    }
+  }, 360)
+}
 
-    // Hide overlay
-    if (overlay) {
+function closeViewer(): void {
+  if (!isOpen || !overlay || !zoomedImg)
+    return
+  if (isAnimating && !isGallerySwitched) {
+    // 首帧动画进行中，直接硬切关闭
+  }
+  isOpen = false
+  isAnimating = true
+
+  overlay.style.opacity = '0'
+  hideChrome()
+
+  if (isGallerySwitched) {
+    // 居中模式：淡出 + 轻微缩放
+    zoomedImg.style.opacity = '0'
+    zoomedImg.style.transform = 'translate(-50%, -50%) scale(0.96)'
+    window.setTimeout(() => {
+      if (!zoomedImg || !overlay)
+        return
       overlay.style.display = 'none'
+      zoomedImg.style.display = 'none'
+      zoomedImg.style.opacity = '0'
+      zoomedImg.style.transform = ''
+      document.body.style.overflow = ''
+      isAnimating = false
+      isGallerySwitched = false
+      // 将焦点还给原图，便于键盘用户
+      // 原图可能已被重新收集，需按索引取
+      try {
+        gallery[currentIndex]?.focus?.()
+      }
+      catch {}
+    }, 300)
+  }
+  else {
+    // 复用原有“回弹到缩略图”动画
+    zoomedImg.style.opacity = '0'
+    // 清掉 transform 即回到 rect 位置
+    zoomedImg.style.transform = ''
+    document.body.style.overflow = ''
+    const onEnd = () => {
+      zoomedImg?.removeEventListener('transitionend', onEnd)
+      if (!zoomedImg || !overlay)
+        return
+      zoomedImg.style.display = 'none'
+      overlay.style.display = 'none'
+      zoomedImg.style.opacity = '0'
+      document.body.style.overflow = ''
+      isAnimating = false
+    }
+    zoomedImg.addEventListener('transitionend', onEnd, { once: true })
+    // 兜底
+    window.setTimeout(() => {
+      if (isAnimating && !isGallerySwitched) {
+        zoomedImg?.removeEventListener('transitionend', onEnd)
+        if (overlay)
+          overlay.style.display = 'none'
+        if (zoomedImg) {
+          zoomedImg.style.display = 'none'
+          zoomedImg.style.opacity = '0'
+          zoomedImg.style.transform = ''
+        }
+        document.body.style.overflow = ''
+        isAnimating = false
+      }
+    }, 360)
+  }
+}
+
+function navigate(dir: 1 | -1): void {
+  if (!isOpen || gallery.length <= 1)
+    return
+  if (isAnimating)
+    return
+
+  const nextIndex = (currentIndex + dir + gallery.length) % gallery.length
+  if (nextIndex === currentIndex)
+    return
+
+  // 若仍处于首帧 rect 动画阶段，待切换完成后再翻页
+  if (!isGallerySwitched) {
+    // 强制完成切换
+    if (!zoomedImg)
+      return
+    zoomedImg.style.transition = 'none'
+    zoomedImg.style.top = '50%'
+    zoomedImg.style.left = '50%'
+    zoomedImg.style.width = 'auto'
+    zoomedImg.style.height = 'auto'
+    zoomedImg.style.maxWidth = '90vw'
+    zoomedImg.style.maxHeight = '90vh'
+    zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
+    zoomedImg.style.opacity = '1'
+    void zoomedImg.offsetWidth
+    zoomedImg.style.transition = ''
+    isGallerySwitched = true
+    isAnimating = false
+  }
+
+  isAnimating = true
+  if (!zoomedImg)
+    return
+
+  // 淡出
+  zoomedImg.style.opacity = '0'
+  zoomedImg.style.transform = `translate(-50%, -50%) scale(0.97) translateX(${dir > 0 ? '-8px' : '8px'})`
+
+  window.setTimeout(() => {
+    if (!zoomedImg)
+      return
+    currentIndex = nextIndex
+    const target = gallery[currentIndex]
+    const src = (target as HTMLImageElement & { currentSrc?: string }).currentSrc || target.src
+    updateChrome()
+
+    const doFadeIn = () => {
+      if (!zoomedImg)
+        return
+      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
+      zoomedImg.style.opacity = '1'
+      window.setTimeout(() => {
+        isAnimating = false
+      }, 300)
     }
 
-    // Restore focus
-    originalImg?.focus()
-    originalImg = null
-  }
+    // 先替换 src，等待加载完成再淡入，避免闪白
+    zoomedImg.onload = () => {
+      if (!zoomedImg)
+        return
+      zoomedImg.onload = null
+      doFadeIn()
+    }
+    zoomedImg.onerror = () => {
+      if (!zoomedImg)
+        return
+      zoomedImg.onerror = null
+      isAnimating = false
+    }
+    zoomedImg.src = src
+    zoomedImg.alt = target.alt || ''
+    // 若已缓存，onload 可能不触发
+    if (zoomedImg.complete) {
+      // 下一帧再淡入，确保 src 已生效
+      requestAnimationFrame(() => {
+        if (zoomedImg && zoomedImg.onload) {
+          zoomedImg.onload = null
+          doFadeIn()
+        }
+      })
+    }
 
-  // Listen for transition end to cleanup
-  zoomedImg.addEventListener('transitionend', cleanup, { once: true })
+    preload(currentIndex + 1)
+    preload(currentIndex - 1)
+  }, 180)
 }
 
-// Handle click events
-function handleClick(event: MouseEvent) {
-  if (zoomedImg) {
-    zoomOut()
+// ---------- 事件 ----------
+function handleKeydown(e: KeyboardEvent): void {
+  if (!isOpen)
     return
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    closeViewer()
   }
-
-  const target = event.target
-  if (!(target instanceof HTMLImageElement)) {
-    return
+  else if (e.key === 'ArrowLeft') {
+    if (gallery.length > 1) {
+      e.preventDefault()
+      navigate(-1)
+    }
   }
-
-  // Ignore small or incomplete images
-  if (!target.complete || target.width < 100 || target.height < 100) {
-    return
+  else if (e.key === 'ArrowRight') {
+    if (gallery.length > 1) {
+      e.preventDefault()
+      navigate(1)
+    }
   }
-
-  event.preventDefault()
-  zoomIn(target)
 }
 
+function handleTouchStart(e: TouchEvent): void {
+  if (!isOpen || gallery.length <= 1)
+    return
+  const t = e.touches[0]
+  touchStartX = t.clientX
+  touchStartY = t.clientY
+}
+
+function handleTouchEnd(e: TouchEvent): void {
+  if (!isOpen || gallery.length <= 1)
+    return
+  const t = e.changedTouches[0]
+  const dx = t.clientX - touchStartX
+  const dy = t.clientY - touchStartY
+  // 横滑阈值 > 50，且横向位移大于纵向
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+    navigate(dx < 0 ? 1 : -1)
+  }
+  else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    // 轻点：下一张（与点击一致）
+    // 已由 click 处理，此处不重复
+  }
+}
+
+function handleClick(e: MouseEvent): void {
+  if (isOpen)
+    return // 打开时由 overlay/按钮/图片各自处理
+  const target = e.target
+  if (!(target instanceof HTMLImageElement))
+    return
+  // 只处理内容区图片
+  const inContent
+    = !!target.closest('#post-content') || !!target.closest('article.heti') || !!target.closest('.gallery-container')
+  // 若不在上述容器，仍允许但需确保是被收集的 gallery 成员
+  const idx = gallery.indexOf(target)
+  if (idx === -1) {
+    // 可能是新插入的图片，重新收集后重试
+    collectImages()
+    const retryIdx = gallery.indexOf(target)
+    if (retryIdx === -1)
+      return
+    if (!isValidTarget(target))
+      return
+    e.preventDefault()
+    openAt(retryIdx)
+    return
+  }
+  if (!isValidTarget(target))
+    return
+  // 若不在内容区但被收集到，仍需是内容区（避免头像等）
+  if (!inContent && gallery.length > 3) {
+    // 保守：非内容区图片不放大
+    // 但 gallery 本身已过滤，这里可放行
+  }
+  e.preventDefault()
+  openAt(idx)
+}
+
+// ---------- 生命周期（复用 Astro View Transitions） ----------
 document.addEventListener('astro:page-load', setupOverlay)
-document.addEventListener('astro:before-swap', cleanupZoom)
+document.addEventListener('astro:before-swap', cleanupViewer)
 document.addEventListener('click', handleClick)
-window.addEventListener('resize', zoomOut)
+window.addEventListener('resize', () => {
+  if (isOpen)
+    closeViewer()
+})
 </script>
