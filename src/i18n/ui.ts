@@ -94,9 +94,9 @@ export const ui: Record<Language, Translation> = {
     toc: 'Оглавление',
   },
   'zh': {
-    title: 'xiechimon',
+    title: 'Xiechimon',
     subtitle: '记录学习',
-    description: 'Xie Chi Mon 的个人博客，记录前端、技术与生活。',
+    description: '记录学习。',
     posts: '文章',
     archives: '归档',
     tags: '标签',

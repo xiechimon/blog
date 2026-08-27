@@ -10,7 +10,7 @@ export const themeConfig: ThemeConfig = {
     // site subtitle
     subtitle: '记录学习',
     // site description
-    description: 'Xie Chi Mon 的个人博客，记录前端、技术与生活。',
+    description: '记录学习。',
     // use i18n title/subtitle/description from src/i18n/ui.ts instead of static ones above
     i18nTitle: true, // true | false
     // author name
