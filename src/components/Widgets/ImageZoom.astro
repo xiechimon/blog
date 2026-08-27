@@ -1,11 +1,11 @@
 <script>
 /**
  * ImageZoom — 复用型图片灯箱，支持单图放大与多图左右翻页
- * 复用点：
+ * - 单阶段 FLIP：开场即按最终盒子（自然尺寸适配 + 题注预留）布局，
+ *   起始帧仅用 transform 复现缩略图位置，动画落点即终点，无二次跳变
+ * - 题注栏与计数在遮罩层 flex 列中位于图片下方，不覆盖图片
  * - 复用全局样式 .zoom-overlay / .zoom-img（src/styles/global.css）
- * - 复用现有 rehype 产物结构（#post-content / article.heti / .gallery-container）
- * - 复用原有缩放动画（rect → center 的 scale/translate）
- * - 零外部依赖，纯原生实现，便于在任何内容区复用
+ * - 零外部依赖，纯原生实现
  */
 let overlay: HTMLDivElement | null = null
 let zoomedImg: HTMLImageElement | null = null
@@ -20,9 +20,12 @@ let gallery: HTMLImageElement[] = []
 let currentIndex = 0
 let isOpen = false
 let isAnimating = false
-let isGallerySwitched = false // 标记是否已从 rect 模式切换到居中模式（多图翻页用）
+let firstFrame = '' // FLIP 起始 transform，关闭时回弹用
 let touchStartX = 0
 let touchStartY = 0
+
+// 题注栏（含间距）在垂直方向预留的高度
+const CAPTION_RESERVE = 96
 
 // ---------- DOM 收集 ----------
 function collectImages(): void {
@@ -34,12 +37,11 @@ function collectImages(): void {
 
   const imgs = Array.from(root.querySelectorAll('img')) as HTMLImageElement[]
   gallery = imgs.filter((img) => {
-    // 排除：链接内的图片、作者头像等小图、未完成且尺寸过小的占位
+    // 排除：链接内的图片、装饰性小图
     if (img.closest('a'))
       return false
     if (img.closest('.no-heti'))
       return false
-    // 过滤装饰性小图（宽高 < 100 且已加载）
     if (img.complete && img.naturalWidth > 0 && img.naturalWidth < 80 && img.naturalHeight < 80) {
       return false
     }
@@ -66,7 +68,6 @@ function setupOverlay(): void {
   zoomedImg = document.createElement('img')
   zoomedImg.className = 'zoom-img'
   zoomedImg.alt = ''
-  // 关键：同时过渡 transform 与 opacity，便于翻页淡入淡出
   zoomedImg.style.opacity = '0'
 
   prevBtn = document.createElement('button')
@@ -99,7 +100,9 @@ function setupOverlay(): void {
   counterEl.className = 'zoom-counter'
   captionBar.append(captionEl, counterEl)
 
-  document.body.append(overlay, zoomedImg, prevBtn, nextBtn, closeBtn, captionBar)
+  // 图片与题注栏放在遮罩的 flex 列里（题注在图片下方）；按钮挂在 body 上
+  overlay.append(zoomedImg, captionBar)
+  document.body.append(overlay, prevBtn, nextBtn, closeBtn)
 
   // 事件
   overlay.addEventListener('click', closeViewer)
@@ -124,7 +127,6 @@ function setupOverlay(): void {
   })
   // 键盘与触摸
   document.addEventListener('keydown', handleKeydown)
-  // 触摸滑动（在 zoomedImg 与 overlay 上）
   zoomedImg.addEventListener('touchstart', handleTouchStart, { passive: true })
   zoomedImg.addEventListener('touchend', handleTouchEnd, { passive: true })
 
@@ -132,24 +134,21 @@ function setupOverlay(): void {
 }
 
 function cleanupViewer(): void {
-  // 页面切换前收尾：关闭并清理引用，但保留 DOM 供下一次复用
-  if (isOpen) {
-    // 同步清理，不走动画，避免过渡残留
-    isOpen = false
-    isAnimating = false
-    isGallerySwitched = false
-    if (overlay) {
-      overlay.style.display = 'none'
-      overlay.style.opacity = '0'
-    }
-    if (zoomedImg) {
-      zoomedImg.style.display = 'none'
-      zoomedImg.style.opacity = '0'
-      zoomedImg.style.transform = ''
-    }
-    hideChrome()
-    document.body.style.overflow = ''
+  // 页面切换前收尾：关闭并清理状态，保留 DOM 供下一次复用
+  if (!isOpen)
+    return
+  isOpen = false
+  isAnimating = false
+  if (overlay) {
+    overlay.style.display = 'none'
+    overlay.style.opacity = '0'
   }
+  if (zoomedImg) {
+    zoomedImg.style.opacity = '0'
+    zoomedImg.style.transform = ''
+  }
+  hideChrome()
+  document.body.style.overflow = ''
 }
 
 // ---------- 工具 ----------
@@ -158,6 +157,19 @@ function getCaption(img: HTMLImageElement): string {
   if (!alt || alt.startsWith('_'))
     return ''
   return alt
+}
+
+/** 计算图片的最终展示盒子：自然尺寸适配 90% 视口，题注可见时预留其空间 */
+function computeBox(img: HTMLImageElement): { w: number, h: number } {
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const showBar = getCaption(img) !== '' || gallery.length > 1
+  const maxW = vw * 0.9
+  const maxH = vh * 0.92 - (showBar ? CAPTION_RESERVE : 0)
+  const nw = img.naturalWidth || img.width || 1
+  const nh = img.naturalHeight || img.height || 1
+  const s = Math.min(maxW / nw, maxH / nh)
+  return { w: Math.round(nw * s), h: Math.round(nh * s) }
 }
 
 function updateChrome(): void {
@@ -185,7 +197,6 @@ function updateChrome(): void {
   captionBar.classList.toggle('is-visible', showBar)
   closeBtn.classList.add('is-visible')
 
-  // 单图时无需 gallery 样式
   if (zoomedImg) {
     zoomedImg.classList.toggle('is-gallery', gallery.length > 1)
   }
@@ -235,171 +246,66 @@ function openAt(index: number): void {
 
   currentIndex = index
   isOpen = true
-  isAnimating = true
-  isGallerySwitched = false
 
   const rect = target.getBoundingClientRect()
   const src = (target as HTMLImageElement & { currentSrc?: string }).currentSrc || target.src
+  const box = computeBox(target)
 
-  // 预置为缩略图位置（复用原有 rect → center 动画）
+  // 直接摆到最终布局（流内居中 + 显式盒子）
   zoomedImg.src = src
   zoomedImg.alt = target.alt || ''
-  zoomedImg.style.display = 'block'
-  zoomedImg.style.top = `${rect.top}px`
-  zoomedImg.style.left = `${rect.left}px`
-  zoomedImg.style.width = `${rect.width}px`
-  zoomedImg.style.height = `${rect.height}px`
-  zoomedImg.style.maxWidth = 'none'
-  zoomedImg.style.maxHeight = 'none'
-  zoomedImg.style.opacity = '0'
-  zoomedImg.style.transform = ''
-
-  overlay.style.display = 'block'
-  // 强制回流，保证从 rect 位置开始过渡
+  zoomedImg.style.width = `${box.w}px`
+  zoomedImg.style.height = `${box.h}px`
+  overlay.style.display = 'flex'
   void zoomedImg.offsetWidth
-
   document.body.style.overflow = 'hidden'
   updateChrome()
 
+  // FLIP 起始帧：用 transform 把居中的最终盒子复现到缩略图位置与大小
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const scaleFactor = vw < 768 ? 0.95 : 0.85
-  const scale = Math.min((vw * scaleFactor) / rect.width, (vh * scaleFactor) / rect.height)
-  const tx = (-rect.left + (vw - rect.width) / 2) / scale
-  const ty = (-rect.top + (vh - rect.height) / 2) / scale
+  const dx = rect.left + rect.width / 2 - vw / 2
+  const dy = rect.top + rect.height / 2 - vh / 2
+  const s = rect.width / box.w
+  firstFrame = `translate(${dx}px, ${dy}px) scale(${s})`
+
+  zoomedImg.style.transition = 'none'
+  zoomedImg.style.transform = firstFrame
+  zoomedImg.style.opacity = '0'
+  void zoomedImg.offsetWidth // 强制回流，保证从起始帧开始过渡
 
   requestAnimationFrame(() => {
     if (!overlay || !zoomedImg)
       return
     overlay.style.opacity = '1'
+    zoomedImg.style.transition = ''
     zoomedImg.style.opacity = '1'
-    zoomedImg.style.transform = `scale(${scale}) translate3d(${tx}px, ${ty}px, 0)`
+    zoomedImg.style.transform = 'translate(0, 0) scale(1)'
   })
 
-  // 首帧动画结束后：多图场景切到居中自适应模式，后续翻页仅做淡入淡出
-  const onFirstEnd = (e: TransitionEvent) => {
-    if (e.propertyName !== 'transform')
-      return
-    zoomedImg?.removeEventListener('transitionend', onFirstEnd)
-    if (!isOpen || !zoomedImg)
-      return
-
-    // 多图才需要切换，单图保留原有“点图关闭回弹”体验
-    if (gallery.length > 1) {
-      // 瞬间切换到居中，不产生二次动画
-      zoomedImg.style.transition = 'none'
-      zoomedImg.style.top = '50%'
-      zoomedImg.style.left = '50%'
-      zoomedImg.style.width = 'auto'
-      zoomedImg.style.height = 'auto'
-      zoomedImg.style.maxWidth = '90vw'
-      zoomedImg.style.maxHeight = '90vh'
-      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
-      // 下一帧恢复过渡，供翻页使用
-      requestAnimationFrame(() => {
-        if (!zoomedImg)
-          return
-        void zoomedImg.offsetWidth
-        zoomedImg.style.transition = ''
-        isGallerySwitched = true
-        isAnimating = false
-      })
-      preload(currentIndex + 1)
-      preload(currentIndex - 1)
-    }
-    else {
-      isAnimating = false
-    }
-  }
-  zoomedImg.addEventListener('transitionend', onFirstEnd)
-
-  // 安全兜底：若 transitionend 未触发
-  window.setTimeout(() => {
-    if (isAnimating && !isGallerySwitched && gallery.length > 1 && zoomedImg) {
-      zoomedImg.removeEventListener('transitionend', onFirstEnd)
-      zoomedImg.style.top = '50%'
-      zoomedImg.style.left = '50%'
-      zoomedImg.style.width = 'auto'
-      zoomedImg.style.height = 'auto'
-      zoomedImg.style.maxWidth = '90vw'
-      zoomedImg.style.maxHeight = '90vh'
-      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
-      isGallerySwitched = true
-      isAnimating = false
-    }
-    else if (gallery.length <= 1) {
-      isAnimating = false
-    }
-  }, 360)
+  preload(currentIndex + 1)
+  preload(currentIndex - 1)
 }
 
 function closeViewer(): void {
   if (!isOpen || !overlay || !zoomedImg)
     return
-  if (isAnimating && !isGallerySwitched) {
-    // 首帧动画进行中，直接硬切关闭
-  }
   isOpen = false
-  isAnimating = true
 
   overlay.style.opacity = '0'
   hideChrome()
 
-  if (isGallerySwitched) {
-    // 居中模式：淡出 + 轻微缩放
-    zoomedImg.style.opacity = '0'
-    zoomedImg.style.transform = 'translate(-50%, -50%) scale(0.96)'
-    window.setTimeout(() => {
-      if (!zoomedImg || !overlay)
-        return
-      overlay.style.display = 'none'
-      zoomedImg.style.display = 'none'
-      zoomedImg.style.opacity = '0'
-      zoomedImg.style.transform = ''
-      document.body.style.overflow = ''
-      isAnimating = false
-      isGallerySwitched = false
-      // 将焦点还给原图，便于键盘用户
-      // 原图可能已被重新收集，需按索引取
-      try {
-        gallery[currentIndex]?.focus?.()
-      }
-      catch {}
-    }, 300)
-  }
-  else {
-    // 复用原有“回弹到缩略图”动画
-    zoomedImg.style.opacity = '0'
-    // 清掉 transform 即回到 rect 位置
+  // 回弹到缩略图位置（反向 FLIP）
+  zoomedImg.style.opacity = '0'
+  zoomedImg.style.transform = firstFrame || 'scale(0.96)'
+
+  window.setTimeout(() => {
+    if (!overlay || !zoomedImg)
+      return
+    overlay.style.display = 'none'
     zoomedImg.style.transform = ''
     document.body.style.overflow = ''
-    const onEnd = () => {
-      zoomedImg?.removeEventListener('transitionend', onEnd)
-      if (!zoomedImg || !overlay)
-        return
-      zoomedImg.style.display = 'none'
-      overlay.style.display = 'none'
-      zoomedImg.style.opacity = '0'
-      document.body.style.overflow = ''
-      isAnimating = false
-    }
-    zoomedImg.addEventListener('transitionend', onEnd, { once: true })
-    // 兜底
-    window.setTimeout(() => {
-      if (isAnimating && !isGallerySwitched) {
-        zoomedImg?.removeEventListener('transitionend', onEnd)
-        if (overlay)
-          overlay.style.display = 'none'
-        if (zoomedImg) {
-          zoomedImg.style.display = 'none'
-          zoomedImg.style.opacity = '0'
-          zoomedImg.style.transform = ''
-        }
-        document.body.style.overflow = ''
-        isAnimating = false
-      }
-    }, 360)
-  }
+  }, 320)
 }
 
 function navigate(dir: 1 | -1): void {
@@ -412,33 +318,13 @@ function navigate(dir: 1 | -1): void {
   if (nextIndex === currentIndex)
     return
 
-  // 若仍处于首帧 rect 动画阶段，待切换完成后再翻页
-  if (!isGallerySwitched) {
-    // 强制完成切换
-    if (!zoomedImg)
-      return
-    zoomedImg.style.transition = 'none'
-    zoomedImg.style.top = '50%'
-    zoomedImg.style.left = '50%'
-    zoomedImg.style.width = 'auto'
-    zoomedImg.style.height = 'auto'
-    zoomedImg.style.maxWidth = '90vw'
-    zoomedImg.style.maxHeight = '90vh'
-    zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
-    zoomedImg.style.opacity = '1'
-    void zoomedImg.offsetWidth
-    zoomedImg.style.transition = ''
-    isGallerySwitched = true
-    isAnimating = false
-  }
-
   isAnimating = true
   if (!zoomedImg)
     return
 
-  // 淡出
+  // 淡出并轻微位移
   zoomedImg.style.opacity = '0'
-  zoomedImg.style.transform = `translate(-50%, -50%) scale(0.97) translateX(${dir > 0 ? '-8px' : '8px'})`
+  zoomedImg.style.transform = `translate(${dir > 0 ? '-10px' : '10px'}, 0) scale(0.98)`
 
   window.setTimeout(() => {
     if (!zoomedImg)
@@ -446,12 +332,15 @@ function navigate(dir: 1 | -1): void {
     currentIndex = nextIndex
     const target = gallery[currentIndex]
     const src = (target as HTMLImageElement & { currentSrc?: string }).currentSrc || target.src
+    const box = computeBox(target)
     updateChrome()
 
-    const doFadeIn = () => {
+    const applyBox = () => {
       if (!zoomedImg)
         return
-      zoomedImg.style.transform = 'translate(-50%, -50%) scale(1)'
+      zoomedImg.style.width = `${box.w}px`
+      zoomedImg.style.height = `${box.h}px`
+      zoomedImg.style.transform = 'translate(0, 0) scale(1)'
       zoomedImg.style.opacity = '1'
       window.setTimeout(() => {
         isAnimating = false
@@ -463,7 +352,7 @@ function navigate(dir: 1 | -1): void {
       if (!zoomedImg)
         return
       zoomedImg.onload = null
-      doFadeIn()
+      applyBox()
     }
     zoomedImg.onerror = () => {
       if (!zoomedImg)
@@ -475,11 +364,10 @@ function navigate(dir: 1 | -1): void {
     zoomedImg.alt = target.alt || ''
     // 若已缓存，onload 可能不触发
     if (zoomedImg.complete) {
-      // 下一帧再淡入，确保 src 已生效
       requestAnimationFrame(() => {
         if (zoomedImg && zoomedImg.onload) {
           zoomedImg.onload = null
-          doFadeIn()
+          applyBox()
         }
       })
     }
@@ -529,10 +417,6 @@ function handleTouchEnd(e: TouchEvent): void {
   if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.2) {
     navigate(dx < 0 ? 1 : -1)
   }
-  else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-    // 轻点：下一张（与点击一致）
-    // 已由 click 处理，此处不重复
-  }
 }
 
 function handleClick(e: MouseEvent): void {
@@ -541,10 +425,6 @@ function handleClick(e: MouseEvent): void {
   const target = e.target
   if (!(target instanceof HTMLImageElement))
     return
-  // 只处理内容区图片
-  const inContent
-    = !!target.closest('#post-content') || !!target.closest('article.heti') || !!target.closest('.gallery-container')
-  // 若不在上述容器，仍允许但需确保是被收集的 gallery 成员
   const idx = gallery.indexOf(target)
   if (idx === -1) {
     // 可能是新插入的图片，重新收集后重试
@@ -560,11 +440,6 @@ function handleClick(e: MouseEvent): void {
   }
   if (!isValidTarget(target))
     return
-  // 若不在内容区但被收集到，仍需是内容区（避免头像等）
-  if (!inContent && gallery.length > 3) {
-    // 保守：非内容区图片不放大
-    // 但 gallery 本身已过滤，这里可放行
-  }
   e.preventDefault()
   openAt(idx)
 }

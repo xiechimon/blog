@@ -54,11 +54,13 @@ h4:hover .heading-anchor-link svg:hover {
 }
 
 /* Image Zoom >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* 遮罩即 flex 列容器：图片在上、题注栏在下，题注永不覆盖图片 */
 .zoom-overlay {
-  --at-apply: 'fixed left-0 top-0 z-999 hidden h-full w-full cursor-zoom-out bg-background/95 op-0 transition-opacity duration-300';
+  --at-apply: 'fixed left-0 top-0 z-999 hidden h-full w-full cursor-zoom-out flex-col items-center justify-center gap-4 bg-background/95 op-0 p-6 transition-opacity duration-300 lg:p-8';
 }
 .zoom-img {
-  --at-apply: 'fixed z-1000 cursor-zoom-out object-contain transition-all duration-300';
+  --at-apply: 'cursor-zoom-out object-contain';
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms cubic-bezier(0.4, 0, 0.2, 1);
   will-change: transform, opacity;
 }
 .zoom-img.is-gallery {
@@ -91,14 +93,13 @@ h4:hover .heading-anchor-link svg:hover {
   --at-apply: 'h-4.5 w-4.5 lg:h-5 lg:w-5';
 }
 .zoom-caption-bar {
-  --at-apply: 'fixed bottom-0 left-1/2 z-1001 flex max-w-[min(90vw,42rem)] -translate-x-1/2 flex-col items-center gap-1.5 px-4 py-4 text-center op-0 transition-opacity duration-300 pointer-events-none lg:bottom-4';
+  --at-apply: 'flex max-w-full flex-col items-center gap-1.5 text-center op-0 transition-opacity duration-300 pointer-events-none';
 }
 .zoom-caption-bar.is-visible {
   --at-apply: 'op-100';
 }
 .zoom-caption {
-  --at-apply: 'line-clamp-2 max-w-full text-sm leading-normal c-primary/90 lg:text-[0.9375rem]';
-  text-shadow: 0 1px 12px oklch(var(--un-preset-theme-colors-background) / 0.9);
+  --at-apply: 'line-clamp-2 max-w-[min(90vw,42rem)] text-sm leading-normal c-primary/90 lg:text-[0.9375rem]';
 }
 .zoom-counter {
   --at-apply: 'rounded-full bg-background/75 px-2.5 py-0.5 text-xs font-medium tracking-wide c-secondary backdrop-blur-sm';
