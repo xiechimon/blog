@@ -97,7 +97,7 @@ lang: ""                                # 可选，文章语言（默认跟随�
 - 保持 `src/config.ts` 中 `site.base: "/"` 与 `site.url: "https://xmon.me"` 一致（影响线上路径与 sitemap/feed/OG）
 - `pnpm-lock.yaml` 需随 `package.json` 一起提交
 - 不要提交 `dist/`、`node_modules/`（已 gitignore）
-- 提交信息简洁中文或英文，关联博文更新时注明 slug
+- 提交信息遵循 conventional 格式：`type(scope): 简洁中文`（如 `feat(lightbox): ...`、`fix(dev): ...`、`style(icons): ...`、`docs/chore/test` 同理），关联博文更新时注明 slug
 
 ## 给 AI Agent 的协作约定
 
