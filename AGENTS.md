@@ -84,6 +84,8 @@ lang: ""                                # 可选，文章语言（默认跟随�
 
 所有站点级配置写在 `src/config.ts`（`site` / `global` / `color` / `comment` / `seo` / `footer` / `preload`）。修改后需重启 dev server；站点多语言文案在 `src/i18n/ui.ts`。
 
+**文案分工**：`i18nTitle: true` 时，标签页标题/副标题/SEO 描述的生效值在 `src/i18n/ui.ts` 的 `zh` 段（连同「文章/归档/标签」等导航词）；`config.ts` 里同名三项仅为后备，改它不生效。「关于」页正文在 `src/content/about/about-zh.md`，与配置无联动。
+
 ## 部署
 
 - 部署目标: VPS（`ssh pqy`，nginx 托管 `/var/www/blog/`，经 Cloudflare Tunnel 暴露为 `https://xmon.me`）

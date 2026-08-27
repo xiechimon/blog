@@ -3,8 +3,10 @@ import type { ThemeConfig } from '@/types'
 export const themeConfig: ThemeConfig = {
   // SITE INFORMATION >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> START
   site: {
+    // ★ 注意：i18nTitle: true 时，title/subtitle/description 的生效值在
+    //   src/i18n/ui.ts 的 zh 段；下面三行仅是 i18nTitle: false 时的后备，改这里不生效
     // site title
-    title: 'Xiechimon',
+    title: 'xiechimon',
     // site subtitle
     subtitle: '记录学习',
     // site description
