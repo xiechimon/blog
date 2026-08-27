@@ -58,7 +58,50 @@ h4:hover .heading-anchor-link svg:hover {
   --at-apply: 'fixed left-0 top-0 z-999 hidden h-full w-full cursor-zoom-out bg-background/95 op-0 transition-opacity duration-300';
 }
 .zoom-img {
-  --at-apply: 'fixed z-1000 cursor-zoom-out transition-transform duration-300';
+  --at-apply: 'fixed z-1000 cursor-zoom-out object-contain transition-all duration-300';
+  will-change: transform, opacity;
+}
+.zoom-img.is-gallery {
+  --at-apply: 'cursor-default';
+}
+
+/* Image Viewer Navigation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+.zoom-nav {
+  --at-apply: 'fixed top-1/2 z-1001 grid aspect-square w-10 -translate-y-1/2 place-items-center rounded-full bg-background/85 c-primary shadow-lg backdrop-blur-md op-0 transition-all duration-200 hover:(bg-background scale-105) active:scale-95 pointer-events-none';
+}
+.zoom-nav.is-visible {
+  --at-apply: 'op-100 pointer-events-auto';
+}
+.zoom-prev {
+  --at-apply: 'left-3 lg:left-6';
+}
+.zoom-next {
+  --at-apply: 'right-3 lg:right-6';
+}
+.zoom-nav svg {
+  --at-apply: 'h-5 w-5';
+}
+.zoom-close {
+  --at-apply: 'fixed right-3 top-3 z-1001 grid aspect-square w-9 place-items-center rounded-full bg-background/85 c-primary shadow-lg backdrop-blur-md op-0 transition-all duration-200 hover:(bg-background rotate-90) active:scale-95 pointer-events-none lg:(right-6 top-6 w-10)';
+}
+.zoom-close.is-visible {
+  --at-apply: 'op-100 pointer-events-auto';
+}
+.zoom-close svg {
+  --at-apply: 'h-4.5 w-4.5 lg:h-5 lg:w-5';
+}
+.zoom-caption-bar {
+  --at-apply: 'fixed bottom-0 left-1/2 z-1001 flex max-w-[min(90vw,42rem)] -translate-x-1/2 flex-col items-center gap-1.5 px-4 py-4 text-center op-0 transition-opacity duration-300 pointer-events-none lg:bottom-4';
+}
+.zoom-caption-bar.is-visible {
+  --at-apply: 'op-100';
+}
+.zoom-caption {
+  --at-apply: 'line-clamp-2 max-w-full text-sm leading-normal c-primary/90 lg:text-[0.9375rem]';
+  text-shadow: 0 1px 12px oklch(var(--un-preset-theme-colors-background) / 0.9);
+}
+.zoom-counter {
+  --at-apply: 'rounded-full bg-background/75 px-2.5 py-0.5 text-xs font-medium tracking-wide c-secondary backdrop-blur-sm';
 }
 
 /* Code Copy Button >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
