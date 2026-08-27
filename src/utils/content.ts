@@ -215,6 +215,31 @@ async function _getPostsByTag(tag: string, lang?: Language) {
 export const getPostsByTag = memoize(_getPostsByTag)
 
 /**
+ * Group posts by publication year
+ *
+ * @param lang The language code to filter by, defaults to site's default language
+ * @returns Map where keys are years (descending) and values are arrays of posts published that year
+ */
+async function _getPostsGroupByYear(lang?: Language) {
+  const posts = await getPosts(lang)
+  const yearMap = new Map<number, Post[]>()
+
+  posts.forEach((post: Post) => {
+    const year = post.data.published.getFullYear()
+    let yearPosts = yearMap.get(year)
+    if (!yearPosts) {
+      yearPosts = []
+      yearMap.set(year, yearPosts)
+    }
+    yearPosts.push(post)
+  })
+
+  return yearMap
+}
+
+export const getPostsGroupByYear = memoize(_getPostsGroupByYear)
+
+/**
  * Check which languages support a specific tag
  *
  * @param tag The tag name to check language support for
