@@ -79,6 +79,8 @@ lang: ""                                # 可选，文章语言（默认跟随�
 - **主题用 Tags 而非 Categories**，分类用 `tags`
 - 支持数学公式（`remark-math` + `rehype-katex`）、mermaid 图、代码块复制按钮、图片 LQIP 占位
 - 图片放 `public/` 或引用相对/绝对路径
+- **正文禁止一级标题**：`title` 已由 `src/pages/[...lang]/posts/[slug].astro` 渲染为唯一 `<h1>`，正文一律从 `##` 开始，禁止再写 `# 标题`（否则出现两个大标题）
+- **参考统一用 `## 参考`**：不用 `## 参考链接` / `参考文献`，与 `claude-pi-slash-commands-guide` / `herdr-tutorial` 保持一致，TOC 可收录
 
 ### 主题配置
 
@@ -103,10 +105,30 @@ lang: ""                                # 可选，文章语言（默认跟随�
 
 - 优先用 `pnpm dev` / `pnpm build` 验证，而非手写 astro 参数
 - 修改 `src/config.ts` / `astro.config.ts` 后务必 `pnpm build` 验证
-- 新增文章后跑 `pnpm build` 确保无断链、`astro check` 通过
+- 新增/修改文章后务必 `pnpm build` 验证：检查 `dist/posts/<slug>/index.html` 中 `<h1` 仅 1 个（`post-title`）、`## 参考` 存在且无 `# 标题` 残留、`astro check` 通过
 - 回答用户时涉及主题功能，引用 https://github.com/radishzzz/astro-theme-retypeset 与 https://docs.astro.build
 - 保持语言与站点一致（默认中文），代码注释可中英混合
 - 不要在未确认时修改 `url`/`base` 等身份与路径配置
+
+### 写作 DNA 自动调用
+
+用户提到"写文章"/"重写"/"润色"/"改写"/"扩写"/"帮我写"/"帮我改"等动作时，自动调用阮一峰写作 DNA 流程：
+
+1. 读 `/Users/xmon/.claude/skills/writing-dna-skill/authors/ruanyifeng/Writing-DNA.md`（≤4000 字速查版）
+2. 读 `raw/` 下 5 篇同 `article_type` 的 raw 校准语感（按 SKILL.md 6.1 流程）
+3. 按场景 A（原创深度文）/ B（周刊）/ C（编译）应用，写完后 `pnpm build` 验证
+4. **新作者**：先 `/writing-dna-skill` 蒸馏（Step 1-7），再用 DNA 写
+
+### new-post.md 自动重命名
+
+完成文章写作并 `pnpm build` 验证通过后，自动将 `src/content/posts/new-post.md` 重命名为合适的 slug 文件名：
+
+- 基于 `frontmatter.title` 提取 slug；命名规范 `YYYY-MM-DD-<slug>.md`（`published` 缺失则用当天日期）
+- slug 转换：小写、空格转 `-`、去除特殊字符（：`、`、`、`.`、`？`、`/` 等）
+- 英文标题直接用 kebab-case；中文标题**优先英文翻译**（兼容 SEO/链接）；用户已在 title 里写英文（如 "matt-pocock skill"）则保留英文 + 拼音补充
+- 重命名前确认不与现有文件冲突；如冲突加 `-2`、`-3` 后缀
+- 用 `git mv` 保留历史，不要删除重建
+- 示例：`matt-pocock skill 详解` → `matt-pocock-skills-explained.md`
 
 ## 软链接说明
 
