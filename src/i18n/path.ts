@@ -18,6 +18,33 @@ export function getTagPath(tagName: string, lang: Language): string {
 }
 
 /**
+ * Get path to the AI 全栈面经题库 overview page
+ *
+ * @param lang Current language code
+ * @returns Path to questions index page
+ */
+export function getQuestionsIndexPath(lang: Language): string {
+  const p = lang === defaultLocale
+    ? `/ai-fullstack-interview/questions/`
+    : `/${lang}/ai-fullstack-interview/questions/`
+  return base ? `${base}${p}` : p
+}
+
+/**
+ * Get path to a specific question category page
+ *
+ * @param category Category slug (e.g. 'agent', 'fullstack')
+ * @param lang Current language code
+ * @returns Path to category page
+ */
+export function getCategoryPath(category: string, lang: Language): string {
+  const p = lang === defaultLocale
+    ? `/ai-fullstack-interview/questions/${category}/`
+    : `/${lang}/ai-fullstack-interview/questions/${category}/`
+  return base ? `${base}${p}` : p
+}
+
+/**
  * Get path to a specific post page with language support
  *
  * @param slug Post slug

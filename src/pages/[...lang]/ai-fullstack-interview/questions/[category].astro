@@ -1,0 +1,111 @@
+---
+import type { QuestionCategory } from '@/data/questions'
+import { allLocales } from '@/config'
+import { CATEGORY_LABELS, questionGroups } from '@/data/questions'
+import { getLangFromLocale, getLangRouteParam } from '@/i18n/lang'
+import { getCategoryPath, getQuestionsIndexPath } from '@/i18n/path'
+import Layout from '@/layouts/Layout.astro'
+
+export async function getStaticPaths() {
+  return allLocales.flatMap((lang) => {
+    const langParam = getLangRouteParam(lang)
+    return questionGroups.map(group => ({
+      params: { lang: langParam, category: group.category },
+      props: { category: group.category },
+    }))
+  })
+}
+
+interface Props {
+  category: QuestionCategory
+}
+
+const { category } = Astro.props
+const currentLang = getLangFromLocale(Astro.currentLocale)
+
+const group = questionGroups.find(g => g.category === category)!
+const label = CATEGORY_LABELS[category]
+
+// 累计全局起始编号（同一道题编号恒定，便于引用）
+let running = 0
+const startIndexMap = {} as Record<QuestionCategory, number>
+for (const g of questionGroups) {
+  startIndexMap[g.category] = running + 1
+  running += g.questions.length
+}
+const startIndex = startIndexMap[category]
+
+const pageTitle = `${label} · AI 全栈面经题库（${group.questions.length} 题）`
+const pageDesc = `共 ${group.questions.length} 道真实题目，每题附来源公司与原帖。`
+---
+
+<Layout
+  postTitle={pageTitle}
+  postDescription={pageDesc}
+>
+  <!-- Decorative Line -->
+  <div class="uno-decorative-line" />
+
+  <!-- 标题区 -->
+  <header class="mb-8">
+    <p class="mb-3 text-3.5 c-secondary">
+      <a href={getQuestionsIndexPath(currentLang)} class="transition-colors hover:(c-primary)">
+        ← 返回题库概览
+      </a>
+    </p>
+    <h1 class="text-5 c-primary font-bold cjk:tracking-wide">
+      {label}
+    </h1>
+    <p class="mt-3 text-4.5 c-secondary">
+      {group.questions.length} 道真实题目
+    </p>
+  </header>
+
+  <!-- 横向分类跳转条（高亮当前类） -->
+  <nav class="mb-8 flex flex-wrap gap-x-3 gap-y-2 text-3.5" aria-label="分类跳转">
+    {questionGroups.map(g => (
+      <a
+        href={getCategoryPath(g.category, currentLang)}
+        class:list={[
+          'transition-colors',
+          g.category === category
+            ? 'c-primary font-bold underline-offset-2'
+            : 'c-secondary hover:(c-primary)',
+        ]}
+      >
+        {g.label}
+      </a>
+    ))}
+  </nav>
+
+  <!-- 该类题目列表 -->
+  <ol class="flex flex-col">
+    {group.questions.map((question, index) => (
+      <li id={question.id} class="flex flex-col scroll-mt-24 gap-1.5 border-b border-secondary/15 py-3.5">
+        <p class="lead-7.5 text-4 c-primary">
+          <span class="mr-2 text-3.2 c-secondary/70 font-time">{startIndex + index}.</span>
+          {question.text}
+        </p>
+
+        <!-- 来源公司胶囊 + 来源原文链接 -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          {question.company && (
+            <span class="border border-secondary/20 rounded-full px-2.5 py-0.5 text-3 c-secondary/80">
+              {question.company}
+            </span>
+          )}
+          {question.sourceUrl && (
+            <a
+              href={question.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-3 c-secondary underline-offset-2 transition-colors hover:(c-primary)"
+            >
+              来源原文 ↗
+            </a>
+          )}
+        </div>
+      </li>
+    ))}
+  </ol>
+</Layout>
