@@ -141,11 +141,15 @@ lang: ""                                # 可选，文章语言（默认跟随�
    - **场景 C**：忠实原文（纯翻译）或强烈个人立场（编译+评论）
 4. **写文章**：保持原内容事实（如果是润色），只换写法
 5. **配图（必选）**：
-   - **首选**：`baoyu-danger-gemini-web`（Gemini 逆向 Web API，质量优先）
-   - **兜底**：`baoyu-image-gen`（OpenAI/Azure/Google/OpenRouter/DashScope 等官方 API）
-   - **专项工具**（按需）：
-     - 封面 → `baoyu-cover-image`（5 维 × 11 调色板 × 7 渲染风格）
-     - 正文插图分析（位置识别 + 批量生成）→ `baoyu-article-illustrator`
+   - **首选 backend**：`baoyu-danger-gemini-web`（Gemini 逆向 Web API，质量优先）
+   - **兜底 backend**：`baoyu-image-gen`（OpenAI/Azure/Google/OpenRouter/DashScope 等官方 API）
+   - **专项工具**：
+     - 封面 → `baoyu-cover-image`（5 维 × 11 调色板 × 7 渲染风格），命名 `<slug>-cover.png`，16:9 或 2.35:1
+     - 正文插图分析（位置识别 + 批量生成）→ `baoyu-article-illustrator`；算法/流程类用 Mermaid（更精确）
+   - **决策规则**：
+     - 重写模式：现有封面无质量问题 → **保留**；换主题/质量差 → 重生成
+     - 新写模式：必走封面工具生成
+   - **尺寸优化**：build 前 `baoyu-compress-image` 转 WebP
 6. **build 验证**：`pnpm build` 必须通过
 
 **Checklist（写完后逐项检查）**：
@@ -195,6 +199,9 @@ lang: ""                                # 可选，文章语言（默认跟随�
 - **来源真实性**：副标题/导语里的来源描述必须和实际素材一致（如 "基于牛客 20 篇" 但实际是 GitCode 二手汇总，必须修正，不能凑数）
 - **用户给了登录态后**：用 `ego-browser` 抓真实原帖（macOS），不能用二手替代品糊弄
 - **先 curl 试一下**：很多公开内容（牛客面经 HTML 等）不用登录态就能拿到，能拿到就不需要登录态和 ego-browser
+- **ASTRO 6 content collection 坑**：`glob({ pattern: '**/*.{md,mdx}' })` 会递归读 posts/ 下**所有** .md。子目录里的 outline.md / prompt 文件即使不在 schema 里也会让 build 失败（`InvalidContentEntryDataError`），且 astro build 会**清理**这些无效文件。规避：① pattern 改 `'*.{md,mdx}'`（不递归）；② 配套文件（outline / prompt / research）放 `posts/` 之外（如 `~/Documents/.../prompts/` 或 `src/content/.prompts/` 隐藏目录）
+- **mcp 配图 sandbox 限制**：`mcp__micu-image__image_generate` 的 `save_dir` 必须在 `~/Pictures/micu-out/` 下（不是项目目录）。规避：参数留空（用默认目录）→ 生成完 `cp` 到目标位置
+- **大批量 article-illustrator 配图 SOP**：先写 prompt 文件 + outline.md（保存到 `imgs/prompts/NN-*.md` 和 `imgs/outline.md`）→ 再调 MCP 生成 → 最后 cp 图 + 插入文章。prompt 文件作为"可复现记录"保留——但**不能放 `posts/` 子目录**（会触发上面那个坑），持久化到 `~/Documents/.../prompts/` 或 `src/content/.prompts/`
 
 ## 软链接说明
 
