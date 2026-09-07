@@ -1,5 +1,7 @@
 ---
+import type { MarkdownHeading } from 'astro'
 import type { Question, QuestionCategory } from '@/data/questions'
+import TOC from '@/components/Widgets/TOC.astro'
 import { allLocales } from '@/config'
 import { CATEGORY_LABELS, questionGroups } from '@/data/questions'
 import { getLangFromLocale, getLangRouteParam } from '@/i18n/lang'
@@ -51,6 +53,13 @@ const subGroups = buildSubGroups(group.questions)
 // 每子技术高频题数（hot）
 const HIGHLIGHT_COUNT = 5
 
+// 把子技术转成 TOC headings（depth 2，slug=subTech，text=subTech），复用 TOC 组件渲染左侧目录
+const tocHeadings: MarkdownHeading[] = subGroups.map(sub => ({
+  depth: 2,
+  slug: sub.subTech,
+  text: sub.subTech,
+}))
+
 const pageTitle = `${label} · AI 全栈面经题库（${group.questions.length} 题）`
 const pageDesc = `共 ${group.questions.length} 道真实题目，按 ${subGroups.length} 个子技术分组，高频题标注出现帖数。`
 ---
@@ -77,22 +86,8 @@ const pageDesc = `共 ${group.questions.length} 道真实题目，按 ${subGroup
     </p>
   </header>
 
-  <!-- 左侧固定子技术目录（xl 下固定左，复用 TOC 定位） -->
-  <nav
-    aria-label="子技术目录"
-    class="mb-8 uno-round-border bg-secondary/5 p-4 xl:(fixed left-0 top-20 max-w-[min(calc(50vw-29.5rem),13rem)] border-none bg-secondary/0 p-0)"
-  >
-    <ul class="flex flex-wrap gap-x-3 gap-y-2 text-3.5 xl:(flex-col gap-y-0.5)">
-      {subGroups.map(sub => (
-        <li>
-          <a href={`#${sub.subTech}`} class="xl:no-heti xl:toc-links-h2">
-            {sub.subTech}
-            <span class="ml-1 c-secondary/70 font-time">{sub.questions.length}</span>
-          </a>
-        </li>
-      ))}
-    </ul>
-  </nav>
+  <!-- 直接复用 TOC 组件渲染左侧子技术目录（带手风琴折叠/滚动高亮/淡入淡出） -->
+  <TOC headings={tocHeadings} />
 
   <!-- 子技术分节 -->
   {subGroups.map((sub) => {
