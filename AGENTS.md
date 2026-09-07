@@ -112,7 +112,7 @@ lang: ""                                # 可选，文章语言（默认跟随�
 
 ### 写作 DNA 自动调用 SOP
 
-**触发条件**：用户提到"写文章"/"重写"/"润色"/"改写"/"扩写"/"按 XX 风格写"/"帮我写"/"帮我改"等动作。
+**触发条件**：用户提到"写文章"/"重写"/"润色"/"改写"/"扩写"/"翻译"/"编译"/"按 XX 风格写"/"帮我写"/"帮我改"等动作。
 
 **前置条件**：
 - DNA 产物存在：`/Users/xmon/.claude/skills/writing-dna-skill/authors/<作者>/Writing-DNA.md`
@@ -124,8 +124,9 @@ lang: ""                                # 可选，文章语言（默认跟随�
 - **新写 vs 重写**已有文章
 
 **Step-by-step 流程**：
-0. **调研主题内容**（新写时必做，重写时可读现有 new-post.md 跳过）：
+0. **调研主题内容**（新写时必做；重写时可读目标文章全文、跳过外部调研）：
    - **通用网页**：`WebFetch` 直接抓取 / `agent-reach`（15 平台路由器）
+   - **复杂单页**（X 长文/付费墙/JS 渲染/需登录）：`baoyu-url-to-markdown`（Chrome CDP + 适配器）
    - **深度调研**：派 `research` skill 或 `general-purpose` Agent 抓 ≥5 篇原文 + 综合分析报告（输出到 `/tmp/<主题>-research.md`）
    - **代码相关**：`code-graph` 探索 / 直接 Read 源码
    - **浏览器交互**：`ego-browser`（需登录态、JS 渲染、截图）
@@ -139,7 +140,13 @@ lang: ""                                # 可选，文章语言（默认跟随�
    - **场景 B**：固定开头 + 主题文章 + 列表板块 + 无评价纯推荐
    - **场景 C**：忠实原文（纯翻译）或强烈个人立场（编译+评论）
 4. **写文章**：保持原内容事实（如果是润色），只换写法
-5. **build 验证**：`pnpm build` 必须通过
+5. **配图（必选）**：
+   - **首选**：`baoyu-danger-gemini-web`（Gemini 逆向 Web API，质量优先）
+   - **兜底**：`baoyu-image-gen`（OpenAI/Azure/Google/OpenRouter/DashScope 等官方 API）
+   - **专项工具**（按需）：
+     - 封面 → `baoyu-cover-image`（5 维 × 11 调色板 × 7 渲染风格）
+     - 正文插图分析（位置识别 + 批量生成）→ `baoyu-article-illustrator`
+6. **build 验证**：`pnpm build` 必须通过
 
 **Checklist（写完后逐项检查）**：
 - [ ] 开头用设问或场景（场景 A）/ 固定开头（场景 B）
