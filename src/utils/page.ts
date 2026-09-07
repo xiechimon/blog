@@ -46,6 +46,10 @@ export function isAboutPage(path: string) {
   return matchPageType(path, 'about')
 }
 
+export function isQuestionsPage(path: string) {
+  return matchPageType(path, 'ai-fullstack-interview/questions')
+}
+
 // Returns page context with language, page types and localization helper
 export function getPageInfo(path: string) {
   const currentLang = getLangFromPath(path)
@@ -54,6 +58,7 @@ export function getPageInfo(path: string) {
   const isTag = isTagPage(path)
   const isArchives = isArchivesPage(path)
   const isAbout = isAboutPage(path)
+  const isQuestions = isQuestionsPage(path)
 
   return {
     currentLang,
@@ -62,6 +67,7 @@ export function getPageInfo(path: string) {
     isTag,
     isArchives,
     isAbout,
+    isQuestions,
     getLocalizedPath: (targetPath: string) =>
       getLocalizedPath(targetPath, currentLang),
   }

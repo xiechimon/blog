@@ -6,6 +6,7 @@ interface Translation {
   description: string
   posts: string
   archives?: string
+  questions?: string
   tags: string
   about: string
   toc: string
@@ -99,6 +100,7 @@ export const ui: Record<Language, Translation> = {
     description: '记录学习。',
     posts: '文章',
     archives: '归档',
+    questions: '面经题库',
     tags: '标签',
     about: '关于',
     toc: '目录',
