@@ -89,7 +89,8 @@ const pageDesc = `共 ${group.questions.length} 道真实题目，按 ${subGroup
   <!-- 直接复用 TOC 组件渲染左侧子技术目录（带手风琴折叠/滚动高亮/淡入淡出） -->
   <TOC headings={tocHeadings} />
 
-  <!-- 子技术分节 -->
+  <!-- 子技术分节（包在 #post-content 里，复用主题 fadeInUp 逐节渐入动画） -->
+  <div id="post-content">
   {subGroups.map((sub) => {
     const highlight = sub.questions.filter(q => q.hot).slice(0, HIGHLIGHT_COUNT)
     const collapsed = sub.questions.filter(q => !highlight.includes(q))
@@ -179,4 +180,5 @@ const pageDesc = `共 ${group.questions.length} 道真实题目，按 ${subGroup
       </section>
     )
   })}
+  </div>
 </Layout>
