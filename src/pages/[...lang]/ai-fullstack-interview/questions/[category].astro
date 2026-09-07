@@ -77,17 +77,21 @@ const pageDesc = `共 ${group.questions.length} 道真实题目，按 ${subGroup
     </p>
   </header>
 
-  <!-- 横向子技术跳转条（点锚点跳子技术节） -->
-  <nav class="mb-8 flex flex-wrap gap-x-3 gap-y-2 text-3.5" aria-label="子技术跳转">
-    {subGroups.map(sub => (
-      <a
-        href={`#${sub.subTech}`}
-        class="border border-secondary/25 rounded-full px-3.5 py-1 transition-colors hover:(border-secondary/40 c-primary)"
-      >
-        {sub.subTech}
-        <span class="ml-1 c-secondary/70 font-time">{sub.questions.length}</span>
-      </a>
-    ))}
+  <!-- 左侧固定子技术目录（xl 下固定左，复用 TOC 定位） -->
+  <nav
+    aria-label="子技术目录"
+    class="mb-8 uno-round-border bg-secondary/5 p-4 xl:(fixed left-0 top-20 max-w-[min(calc(50vw-29.5rem),13rem)] border-none bg-secondary/0 p-0)"
+  >
+    <ul class="flex flex-wrap gap-x-3 gap-y-2 text-3.5 xl:(flex-col gap-y-0.5)">
+      {subGroups.map(sub => (
+        <li>
+          <a href={`#${sub.subTech}`} class="xl:no-heti xl:toc-links-h2">
+            {sub.subTech}
+            <span class="ml-1 c-secondary/70 font-time">{sub.questions.length}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
   </nav>
 
   <!-- 子技术分节 -->
