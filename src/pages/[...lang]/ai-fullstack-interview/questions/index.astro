@@ -47,17 +47,24 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
     </p>
   </header>
 
-  <!-- 命题锚点导航（纯排版下轻量目录） -->
-  <nav class="mb-10 flex flex-wrap gap-x-3 gap-y-2 text-3.5">
-    {questionGroupsWithStart.map(group => (
-      <a
-        href={`#${group.category}`}
-        class="border border-secondary/25 rounded-full px-3.5 py-1 transition-colors hover:(border-secondary/40 c-primary)"
-      >
-        {group.label}
-        <span class="ml-1 c-secondary/70 font-time">{group.questions.length}</span>
-      </a>
-    ))}
+  <!-- 左侧固定目录（xl 下固定左，复用 TOC 定位思路） -->
+  <nav
+    aria-label="题库目录"
+    class="mb-8 uno-round-border bg-secondary/5 p-4 xl:(fixed left-0 top-20 max-w-[min(calc(50vw-29.5rem),13rem)] border-none bg-secondary/0 p-0)"
+  >
+    <ul class="flex flex-wrap gap-x-3 gap-y-2 text-3.5 xl:(flex-col gap-y-0.5)">
+      {questionGroupsWithStart.map(group => (
+        <li>
+          <a
+            href={`#${group.category}`}
+            class="xl:no-heti xl:toc-links-h2"
+          >
+            {group.label}
+            <span class="ml-1 c-secondary/70 font-time">{group.questions.length}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
   </nav>
 
   <!-- 六大命题分组 -->
