@@ -47,21 +47,29 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
     </p>
   </header>
 
-  <!-- 左侧固定目录（xl 下固定左，复用 TOC 定位思路） -->
+  <!-- 左侧固定目录（xl 下固定左，复用 TOC 定位思路 + details 树状展开） -->
   <nav
     aria-label="题库目录"
     class="mb-8 uno-round-border bg-secondary/5 p-4 xl:(fixed left-0 top-20 max-w-[min(calc(50vw-29.5rem),13rem)] border-none bg-secondary/0 p-0)"
   >
-    <ul class="flex flex-wrap gap-x-3 gap-y-2 text-3.5 xl:(flex-col gap-y-0.5)">
+    <ul id="toc-links-list" class="flex flex-wrap gap-x-3 gap-y-2 text-3.5 xl:(flex-col gap-y-0.5)">
       {questionGroupsWithStart.map(group => (
         <li>
-          <a
-            href={`#${group.category}`}
-            class="xl:no-heti xl:toc-links-h2"
-          >
-            {group.label}
-            <span class="ml-1 c-secondary/70 font-time">{group.questions.length}</span>
-          </a>
+          <details>
+            <summary class="xl:no-heti xl:toc-links-h2 c-primary font-medium">
+              {group.label}
+              <span class="ml-1 c-secondary/70 font-time">{group.questions.length}</span>
+            </summary>
+            <ul class="ml-2 mt-1 space-y-0.5 xl:(border-l border-secondary/15 pl-3)">
+              {group.questions.map(question => (
+                <li>
+                  <a href={`#${question.id}`} class="xl:no-heti xl:toc-links-h3">
+                    {question.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </details>
         </li>
       ))}
     </ul>
@@ -80,7 +88,7 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
       <!-- 每题一行 -->
       <ol class="flex flex-col">
         {group.questions.map((question, index) => (
-          <li class="flex flex-col gap-1.5 border-b border-secondary/15 py-3.5">
+          <li id={question.id} class="flex flex-col scroll-mt-24 gap-1.5 border-b border-secondary/15 py-3.5">
             <p class="lead-7.5 text-4 c-primary">
               <span class="mr-2 text-3.2 c-secondary/70 font-time">{group.startIndex + index}.</span>
               {question.text}
@@ -110,3 +118,66 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
     </section>
   ))}
 </Layout>
+
+<script>
+// 复用 TOC.astro 思路的滚动高亮：让题库目录随滚动高亮当前分类/题目
+const tocList = document.getElementById('toc-links-list')
+
+interface TocEntry { link: HTMLAnchorElement, el: HTMLElement }
+
+function updateActive() {
+  if (!tocList) {
+    return
+  }
+  const links = Array.from(tocList.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'))
+  if (!links.length) {
+    return
+  }
+
+  const targets: TocEntry[] = []
+  links.forEach((link) => {
+    const id = (link.getAttribute('href') || '').replace('#', '')
+    const el = document.getElementById(id)
+    if (el) {
+      targets.push({ link, el })
+    }
+  })
+
+  let currentId = ''
+  for (const { el } of targets) {
+    if (el.getBoundingClientRect().top <= 120) {
+      currentId = el.id
+    }
+  }
+
+  links.forEach((link) => {
+    const id = (link.getAttribute('href') || '').replace('#', '')
+    link.classList.toggle('target-current', id === currentId)
+  })
+}
+
+function handleScroll() {
+  requestAnimationFrame(updateActive)
+}
+
+function setupActive() {
+  tocList?.querySelectorAll('details').forEach((item) => {
+    item.addEventListener('toggle', updateActive)
+  })
+  document.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('resize', handleScroll)
+  updateActive()
+}
+
+function cleanupActive() {
+  document.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('resize', handleScroll)
+}
+
+document.addEventListener('astro:page-load', () => {
+  setupActive()
+})
+document.addEventListener('astro:before-swap', () => {
+  cleanupActive()
+})
+</script>
