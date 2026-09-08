@@ -8,7 +8,7 @@
  *   1. 数据卫生：公司名归一 + 题干去序号/章节号/聊天尾巴 + 修复截断首字母
  *   2. 近重复合并（清洗后文本的字符二元组 Jaccard ≥ 阈值 → 收敛为代表）
  *   3. 精选收敛：保留全部 hot 题；对没有任何 hot 题的存量子技术补其热度代表
- *   4. 排序：分类（QUESTION_CATEGORIES 序）→ 子技术 → 热力（coverCount 降序，hot 优先）
+ *   4. 排序：分类（QUESTION_CATEGORIES 序）→ 子技术 → 组内 coverCount 降序（hot 为同 coverCount 时的次级键）
  *
  * 全部清洗逻辑收敛在本模块，不编辑 src/data/questions.ts。
  */
@@ -298,11 +298,16 @@ function dedupeNearTwins(list: readonly Question[], threshold: number): Question
  * 选择主函数
  * ------------------------------------------------------------------ */
 
+/**
+ * 组内排序：主键 coverCount 降序；同 coverCount 时 hot 在前（次级键）；再按 id 保证稳定。
+ * 注意：hot 不是优先级高于 coverCount 的开关，只是同热度下的次级排序。
+ */
 function heatDesc(a: Question, b: Question): number {
   return b.coverCount - a.coverCount || Number(b.hot) - Number(a.hot) || a.id.localeCompare(b.id)
 }
 
-function groupKey(category: QuestionCategory, subTech: string): string {
+/** 子技术分组键：`category::subTech`。生成器与校验脚本共用，避免键分隔符在两侧漂移 */
+export function groupKey(category: QuestionCategory, subTech: string): string {
   return `${category}::${subTech}`
 }
 

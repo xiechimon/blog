@@ -32,7 +32,7 @@ const tocHeadings: MarkdownHeading[] = groups.map(group => ({
 }))
 
 const pageTitle = `AI 全栈面经题库 · 精选核心 ${curatedTotal} 题`
-const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面经（${sourceMeta.dateRange}），从全量 ${totalQuestions} 题中精选 ${curatedTotal} 道全高频题，按 ${groups.length} 大命题分组，每题附来源公司与原帖链接。`
+const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面经（${sourceMeta.dateRange}），从全量 ${totalQuestions} 题中精选 ${curatedTotal} 道核心题，按 ${groups.length} 大命题分组，每题附来源公司与原帖链接。`
 ---
 
 <Layout
@@ -48,7 +48,7 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
       AI 全栈面经题库 · 精选核心
     </h1>
     <p class="mt-3 text-4.5 c-secondary">
-      从牛客 {sourceMeta.postCount} 篇 AI 全栈 / Agent 面经中精选 {curatedTotal} 道全高频题
+      从牛客 {sourceMeta.postCount} 篇 AI 全栈 / Agent 面经中精选 {curatedTotal} 道核心题
     </p>
     <p class="mt-2 text-3.5 c-secondary/70">
       {sourceMeta.dateRange} · 覆盖全部 {groups.length} 大命题 · 每题附来源公司与原帖链接
