@@ -1,8 +1,10 @@
 ---
+import type { MarkdownHeading } from 'astro'
+import TOC from '@/components/Widgets/TOC.astro'
 import { allLocales } from '@/config'
-import { questionGroups, sourceMeta, totalQuestions } from '@/data/questions'
-import { getLangFromLocale, getLangRouteParam } from '@/i18n/lang'
-import { getCategoryPath } from '@/i18n/path'
+import { QUESTION_CATEGORIES, totalQuestions } from '@/data/questions'
+import { CATEGORY_LABELS, curatedCore, curatedTotal, sourceMeta } from '@/data/questions-core'
+import { getLangRouteParam } from '@/i18n/lang'
 import Layout from '@/layouts/Layout.astro'
 
 export async function getStaticPaths() {
@@ -11,10 +13,26 @@ export async function getStaticPaths() {
   }))
 }
 
-const currentLang = getLangFromLocale(Astro.currentLocale)
+// 7 大分类（QUESTION_CATEGORIES 序）逐节渲染；curatedCore 已按 分类→子技术→热力 排序，这里按分类收敛
+let running = 0
+const groups = QUESTION_CATEGORIES
+  .map((category) => {
+    const questions = curatedCore.filter(q => q.category === category)
+    const start = running + 1
+    running += questions.length
+    return { category, label: CATEGORY_LABELS[category], questions, start }
+  })
+  .filter(group => group.questions.length > 0)
 
-const pageTitle = `AI 全栈面经题库（${sourceMeta.postCount} 篇 · ${totalQuestions} 题）`
-const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面经，按 ${questionGroups.length} 大命题分组、共 ${totalQuestions} 道真实题目，每题附来源公司与原帖链接。`
+// 左侧大纲：仅 7 大分类（depth 2），698 道题不进 TOC；每道题仍有独立锚点便于直链分享
+const tocHeadings: MarkdownHeading[] = groups.map(group => ({
+  depth: 2,
+  slug: group.category,
+  text: group.label,
+}))
+
+const pageTitle = `AI 全栈面经题库 · 精选核心 ${curatedTotal} 题`
+const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面经（${sourceMeta.dateRange}），从全量 ${totalQuestions} 题中精选 ${curatedTotal} 道全高频题，按 ${groups.length} 大命题分组，每题附来源公司与原帖链接。`
 ---
 
 <Layout
@@ -24,36 +42,72 @@ const pageDesc = `基于牛客 ${sourceMeta.postCount} 篇 AI 全栈/Agent 面�
   <!-- Decorative Line -->
   <div class="uno-decorative-line" />
 
-  <!-- 标题区 -->
+  <!-- 标题区：唯一 h1 -->
   <header class="mb-10">
     <h1 class="text-5 c-primary font-bold cjk:tracking-wide">
-      AI 全栈面经题库
+      AI 全栈面经题库 · 精选核心
     </h1>
     <p class="mt-3 text-4.5 c-secondary">
-      基于牛客 {sourceMeta.postCount} 篇面经 · 共 {totalQuestions} 道真实题目
+      从牛客 {sourceMeta.postCount} 篇 AI 全栈 / Agent 面经中精选 {curatedTotal} 道全高频题
     </p>
     <p class="mt-2 text-3.5 c-secondary/70">
-      {sourceMeta.dateRange} · 按 {questionGroups.length} 大命题分组 · 每题附来源公司与原帖
+      {sourceMeta.dateRange} · 覆盖全部 {groups.length} 大命题 · 每题附来源公司与原帖链接
     </p>
   </header>
 
-  <!-- 7 大分类卡片概览 -->
-  <div class="grid gap-4 sm:(grid-cols-2)">
-    {questionGroups.map(group => (
-      <a
-        href={getCategoryPath(group.category, currentLang)}
-        class="uno-round-border bg-secondary/5 p-5 transition-colors hover:(border-secondary/30 bg-secondary/10)"
-      >
-        <h2 class="text-4.5 c-primary font-bold cjk:tracking-wide">
+  <!-- 分类大纲：复用主题 TOC 组件，scrollspy 高亮当前分类 -->
+  <TOC headings={tocHeadings} />
+
+  <!-- 单页长滚动正文：分类 h2 → 题 h3（子技术为小 badge），包在 #post-content 复用逐节渐入动画 -->
+  <div id="post-content">
+    {groups.map(group => (
+      <section id={group.category} class="mb-12 scroll-my-24">
+        <h2 class="mb-5 scroll-mt-24 text-4.5 c-primary font-bold cjk:tracking-wide">
           {group.label}
+          <span class="ml-1.5 text-3.5 c-secondary font-medium font-time">
+            · {group.questions.length} 题
+          </span>
         </h2>
-        <p class="mt-2 text-3.5 c-secondary">
-          {group.questions.length} 题
-        </p>
-        <span class="mt-3 inline-block text-3 c-secondary">
-          进入该类 →
-        </span>
-      </a>
+
+        <!-- 长文题列：跨分类连续编号，每题一个锚点标题 + 单行管道式元信息 -->
+        <ol class="flex flex-col">
+          {group.questions.map((question, i) => (
+            <li class="flex flex-col scroll-mt-24 gap-2 border-b border-secondary/15 py-4">
+              <h3
+                id={question.id}
+                class="lead-7.5 scroll-mt-24 text-4 c-primary font-medium"
+              >
+                <span class="mr-2 c-secondary/70 font-time">{group.start + i}.</span>
+                {question.text}
+              </h3>
+              <p class="flex flex-wrap items-center gap-y-1 text-3 c-secondary/80">
+                <span class="border border-secondary/25 rounded-full bg-secondary/5 px-2 py-0.5 text-2.8 c-primary/80">
+                  {question.subTech}
+                </span>
+                {question.company && <span class="mx-2 c-secondary/40">·</span>}
+                {question.company && <span>{question.company}</span>}
+                {question.hot && <span class="mx-2 c-secondary/40">·</span>}
+                {question.hot && (
+                  <span class="border border-secondary/25 rounded-full bg-secondary/5 px-2 py-0.5 text-2.8 c-primary/80">
+                    高频 · {question.coverCount} 帖
+                  </span>
+                )}
+                {question.sourceUrl && <span class="mx-2 c-secondary/40">·</span>}
+                {question.sourceUrl && (
+                  <a
+                    href={question.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="underline-offset-2 transition-colors hover:(c-primary)"
+                  >
+                    来源原文 ↗
+                  </a>
+                )}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
     ))}
   </div>
 </Layout>
